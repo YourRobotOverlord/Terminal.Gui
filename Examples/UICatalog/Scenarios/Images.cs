@@ -145,7 +145,17 @@ public class Images : Scenario
 
         SetupSixelSupported (_cbSupportsSixel.CheckedState == CheckState.Checked);
 
-        btnOpenImage.Accepting += OpenImage;
+        btnOpenImage.Accepting += (s, e) =>
+        {
+            if (e.Handled)
+            {
+                return;
+            }
+
+            e.Handled = true;
+
+            OpenImage (s, e);
+        };
 
         _win.Add (lblSupportsSixel);
         _win.Add (_tabView);
