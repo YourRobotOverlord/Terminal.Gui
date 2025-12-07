@@ -1016,6 +1016,223 @@
       }
     },
     {
+      "Lexicon Dark": {
+        "Dialog.DefaultShadow": "None",
+        "Dialog.DefaultBorderStyle": "Rounded",
+        "FrameView.DefaultBorderStyle": "Rounded",
+        "Window.DefaultBorderStyle": "Rounded",
+        "MessageBox.DefaultBorderStyle": "Rounded",
+        "Button.DefaultShadow": "None",
+        "Menu.DefaultBorderStyle": "Rounded",
+        "Schemes": [
+          {
+            "Runnable": {
+              "Normal": {
+                "Foreground": "#c0caf5",
+                "Background": "#1a1b26",
+                "Style": "None"
+              },
+              "ReadOnly": {
+                "Foreground": "#c0caf5",
+                "Background": "#292e42",
+                "Style": "None"
+              },
+              "Disabled": {
+                "Foreground": "#848aa8",
+                "Background": "#1a1b26",
+                "Style": "None"
+              }
+            }
+          },
+          {
+            "Base": {
+              "Normal": {
+                "Foreground": "#c0caf5",
+                "Background": "#1a1b26",
+                "Style": "None"
+              },
+              "HotNormal": {
+                "Foreground": "#00FF6A",
+                "Background": "#1a1b26",
+                "Style": "Underline"
+              },
+              "Active": {
+                "Foreground": "#1a1b26",
+                "Background": "#c0caf5",
+                "Style": "None"
+              },
+              "HotActive": {
+                "Foreground": "Red",
+                "Background": "Blue",
+                "Style": "Underline, Blink"
+              },
+              "Focus": {
+                "Foreground": "#c0caf5",
+                "Background": "#1a1b26",
+                "Style": "Bold"
+              },
+              "HotFocus": {
+                "Foreground": "#00FF6A",
+                "Background": "#1a1b26",
+                "Style": "Underline, Bold"
+              },
+              "Highlight": {
+                "Foreground": "#c0caf5",
+                "Background": "#1a1b26",
+                "Style": "Italic"
+              },
+              "Editable": {
+                "Foreground": "#00FF6A",
+                "Background": "#292e42",
+                "Style": "None"
+              },
+              "ReadOnly": {
+                "Foreground": "#c0caf5",
+                "Background": "#292e42",
+                "Style": "None"
+              },
+              "Disabled": {
+                "Foreground": "#848aa8",
+                "Background": "#1a1b26",
+                "Style": "None"
+              }
+            }
+          },
+          {
+            "Dialog": {
+              "Normal": {
+                "Foreground": "#c0caf5",
+                "Background": "#16161e",
+                "Style": "None"
+              },
+              "HotNormal": {
+                "Foreground": "#00FF6A",
+                "Background": "#16161e",
+                "Style": "Underline"
+              },
+              "Active": {
+                "Foreground": "#1a1b26",
+                "Background": "#00FF6A",
+                "Style": "None"
+              },
+              "Focus": {
+                "Foreground": "#c0caf5",
+                "Background": "#16161e",
+                "Style": "Bold"
+              },
+              "HotFocus": {
+                "Foreground": "#00FF6A",
+                "Background": "#16161e",
+                "Style": "Bold, Underline"
+              },
+              "Editable": {
+                "Foreground": "#00FF6A",
+                "Background": "#292e42",
+                "Style": "None"
+              }
+            }
+          },
+          {
+            "TextInput": {
+              "Normal": {
+                "Foreground": "#c0caf5",
+                "Background": "#16161e",
+                "Style": "None"
+              },
+              "HotNormal": {
+                "Foreground": "Red",
+                "Background": "#16161e",
+                "Style": "Underline"
+              },
+              "Active": {
+                "Foreground": "#1a1b26",
+                "Background": "Red",
+                "Style": "None"
+              },
+              "Focus": {
+                "Foreground": "Red",
+                "Background": "#16161e",
+                "Style": "Bold"
+              },
+              "HotFocus": {
+                "Foreground": "Red",
+                "Background": "#16161e",
+                "Style": "Bold, Underline"
+              },
+              "Editable": {
+                "Foreground": "Red",
+                "Background": "#292e42",
+                "Style": "None"
+              }
+            }
+          },
+          {
+            "Menu": {
+              "Normal": {
+                "Foreground": "#c0caf5",
+                "Background": "#16161e",
+                "Style": "None"
+              },
+              "HotNormal": {
+                "Foreground": "#00FF6A",
+                "Background": "#16161e",
+                "Style": "Underline"
+              },
+              "Focus": {
+                "Foreground": "#c0caf5",
+                "Background": "#292e42",
+                "Style": "None"
+              },
+              "HotFocus": {
+                "Foreground": "#00FF6A",
+                "Background": "#292e42",
+                "Style": "Underline"
+              },
+              "Highlight": {
+                "Foreground": "#c0caf5",
+                "Background": "#16161e",
+                "Style": "Italic"
+              },
+              "Disabled": {
+                "Foreground": "#3b4261",
+                "Background": "#16161e",
+                "Style": "Faint"
+              }
+            }
+          },
+          {
+            "Error": {
+              "Normal": {
+                "Foreground": "#16161e",
+                "Background": "#B20A26",
+                "Style": "Italic"
+              },
+              "Active": {
+                "Foreground": "#16161e",
+                "Background": "#B20A26",
+                "Style": "Bold,Italic"
+              },
+              "Highlight": {
+                "Foreground": "#16161e",
+                "Background": "#B20A26",
+                "Style": "Italic"
+              },
+              "Editable": {
+                "Foreground": "#16161e",
+                "Background": "#B20A26",
+                "Style": "Italic"
+              },
+              "ReadOnly": {
+                "Foreground": "#16161e",
+                "Background": "#B20A26",
+                "Style": "Faint,Italic"
+              }
+            }
+          }
+        ]
+      }
+    },
+        {
       "8-Bit": {
         "Dialog.DefaultShadow": "None",
         "FrameView.DefaultBorderStyle": "Single",
