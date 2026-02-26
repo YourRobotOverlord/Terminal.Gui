@@ -1,15 +1,15 @@
-#nullable enable
 using Xunit.Abstractions;
 
-namespace ApplicationTests;
+namespace ApplicationTests.RunnableTests;
 
 /// <summary>
 ///     Tests for edge cases and error conditions in IRunnable implementation.
 /// </summary>
+[Collection("Application Tests")]
 public class RunnableEdgeCasesTests (ITestOutputHelper output)
 {
     private readonly ITestOutputHelper _output = output;
-    
+
     [Fact]
     public void Runnable_MultipleEventSubscribers_AllInvoked ()
     {

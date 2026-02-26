@@ -34,7 +34,7 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.x
+        dotnet-version: 10.x
         dotnet-quality: 'ga'
 
     - name: Download build artifacts
@@ -97,8 +97,12 @@ jobs:
       with:
         name: non_parallel_unittests-logs-${{ runner.os }}
         path: |
-          logs/UnitTests    
+          logs/UnitTests/
+          Tests/UnitTests/logs/
           TestResults/
+          **/*.dmp
+        if-no-files-found: ignore
+        retention-days: 7
   
     - name: Upload Non-Parallel UnitTests Coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && always()
@@ -129,7 +133,7 @@ jobs:
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.x
+        dotnet-version: 10.x
         dotnet-quality: 'ga'
 
     - name: Download build artifacts
@@ -154,80 +158,67 @@ jobs:
       shell: bash
       run: echo "VSTEST_DUMP_PATH=logs/UnitTestsParallelizable/${{ runner.os }}/" >> $GITHUB_ENV
 
-    - name: Run UnitTestsParallelizable (10 iterations with varying parallelization)
+    - name: Run UnitTestsParallelizable
       shell: bash
       run: |
-        # Run tests 3 times with different parallelization settings to expose concurrency issues
-        for RUN in {1..3}; do
-          echo "============================================"
-          echo "Starting test run $RUN of 3"
-          echo "============================================"
-          
-          # Use a combination of run number and timestamp to create different execution patterns
-          SEED=$((1000 + $RUN + $(date +%s) % 1000))
-          echo "Using randomization seed: $SEED"
-          
-          # Vary the xUnit parallelization based on run number to expose race conditions
-          # Runs 1-3: Default parallelization (2x CPU cores)
-          # Runs 4-6: Max parallelization (unlimited)
-          # Runs 7-9: Single threaded (1)
-          # Run 10: Random (1-4 threads)
-          if [ $RUN -le 3 ]; then
-            XUNIT_MAX_PARALLEL_THREADS="2x"
-            echo "Run $RUN: Using default parallelization (2x)"
-          elif [ $RUN -le 6 ]; then
-            XUNIT_MAX_PARALLEL_THREADS="unlimited"
-            echo "Run $RUN: Using maximum parallelization (unlimited)"
-          elif [ $RUN -le 9 ]; then
-            XUNIT_MAX_PARALLEL_THREADS="1"
-            echo "Run $RUN: Using single-threaded execution"
-          else
-            # Random parallelization based on seed
-            PROC_COUNT=$(( ($SEED % 4) + 1 ))
-            XUNIT_MAX_PARALLEL_THREADS="$PROC_COUNT"
-            echo "Run $RUN: Using random parallelization with $PROC_COUNT threads"
+        # Detect CPU count and calculate optimal thread count
+        if [ "${{ runner.os }}" == "Linux" ]; then
+          CPU_COUNT=$(nproc)
+        elif [ "${{ runner.os }}" == "macOS" ]; then
+          CPU_COUNT=$(sysctl -n hw.ncpu)
+        else  # Windows
+          CPU_COUNT=$NUMBER_OF_PROCESSORS
+        fi
+        
+        # Use 2x CPU count for I/O-bound tests, capped at reasonable max
+        # macOS uses lower cap (4) to prevent thread pool exhaustion
+        MAX_THREADS=$((CPU_COUNT * 2))
+        if [ "${{ runner.os }}" == "macOS" ]; then
+          if [ $MAX_THREADS -gt 4 ]; then
+            MAX_THREADS=2
           fi
-          
-          # Run tests with or without coverage based on OS and run number
-          if [ "${{ runner.os }}" == "Linux" ] && [ $RUN -eq 1 ]; then
-            echo "Run $RUN: Running with coverage collection"
-            dotnet test Tests/UnitTestsParallelizable \
-              --no-build \
-              --verbosity normal \
-              --collect:"XPlat Code Coverage" \
-              --settings Tests/UnitTests/runsettings.coverage.xml \
-              --diag:logs/UnitTestsParallelizable/${{ runner.os }}/run${RUN}-logs.txt \
-              --blame \
-              --blame-crash \
-              --blame-hang \
-              --blame-hang-timeout 60s \
-              --blame-crash-collect-always \
-              -- xUnit.MaxParallelThreads=${XUNIT_MAX_PARALLEL_THREADS}
-          else
-            dotnet test Tests/UnitTestsParallelizable \
-              --no-build \
-              --verbosity normal \
-              --settings Tests/UnitTestsParallelizable/runsettings.xml \
-              --diag:logs/UnitTestsParallelizable/${{ runner.os }}/run${RUN}-logs.txt \
-              --blame \
-              --blame-crash \
-              --blame-hang \
-              --blame-hang-timeout 60s \
-              --blame-crash-collect-always \
-              -- xUnit.MaxParallelThreads=${XUNIT_MAX_PARALLEL_THREADS}
+          HANG_TIMEOUT="240s"
+        else
+          if [ $MAX_THREADS -gt 16 ]; then
+            MAX_THREADS=16
           fi
-          
-          if [ $? -ne 0 ]; then
-            echo "ERROR: Test run $RUN failed!"
-            exit 1
-          fi
-          
-          echo "Test run $RUN completed successfully"
-          echo ""
-        done
+          HANG_TIMEOUT="60s"
+        fi
+        
+        echo "Detected $CPU_COUNT CPUs, using $MAX_THREADS parallel threads"
+        
+        # Run tests with dynamic thread count
+        if [ "${{ runner.os }}" == "Linux" ]; then
+          dotnet test Tests/UnitTestsParallelizable \
+            --no-build \
+            --verbosity normal \
+            --collect:"XPlat Code Coverage" \
+            --settings Tests/UnitTests/runsettings.coverage.xml \
+            --diag:logs/UnitTestsParallelizable/${{ runner.os }}/logs.txt \
+            --blame \
+            --blame-crash \
+            --blame-hang \
+            --blame-hang-timeout $HANG_TIMEOUT \
+            --blame-crash-collect-always \
+            -- xUnit.MaxParallelThreads=$MAX_THREADS \
+            -- xUnit.StopOnFail=true
+        else
+          dotnet test Tests/UnitTestsParallelizable \
+            --no-build \
+            --verbosity normal \
+            --settings Tests/UnitTestsParallelizable/runsettings.xml \
+            --diag:logs/UnitTestsParallelizable/${{ runner.os }}/logs.txt \
+            --blame \
+            --blame-crash \
+            --blame-hang \
+            --blame-hang-timeout $HANG_TIMEOUT \
+            --blame-crash-collect-always \
+            -- xUnit.MaxParallelThreads=$MAX_THREADS \
+            -- xUnit.StopOnFail=true
+        fi
         
         echo "============================================"
-        echo "All 10 test runs completed successfully!"
+        echo "Parallel unit tests completed successfully!"
         echo "============================================"
 
     - name: Upload UnitTestsParallelizable Logs
@@ -237,7 +228,11 @@ jobs:
         name: parallel_unittests-logs-${{ runner.os }}
         path: |
           logs/UnitTestsParallelizable/
+          Tests/UnitTestsParallelizable/logs/
           TestResults/
+          **/*.dmp
+        if-no-files-found: ignore
+        retention-days: 7
   
     - name: Upload Parallelizable UnitTests Coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && always()

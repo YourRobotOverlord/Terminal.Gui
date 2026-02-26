@@ -23,19 +23,7 @@ public class Label : View, IDesignable
         Height = Dim.Auto (DimAutoStyle.Text);
         Width = Dim.Auto (DimAutoStyle.Text);
 
-        // On HoKey, pass it to the next view
-        AddCommand (Command.HotKey, InvokeHotKeyOnNextPeer!);
-
         TitleChanged += Label_TitleChanged;
-        MouseClick += Label_MouseClick;
-    }
-
-    private void Label_MouseClick (object? sender, MouseEventArgs e)
-    {
-        if (!CanFocus)
-        {
-            e.Handled = InvokeCommand<KeyBinding> (Command.HotKey, new ([Command.HotKey], this, this)) == true;
-        }
     }
 
     private void Label_TitleChanged (object? sender, EventArgs<string> e)
@@ -45,48 +33,34 @@ public class Label : View, IDesignable
     }
 
     /// <inheritdoc/>
-    public override string Text
-    {
-        get => Title;
-        set => base.Text = Title = value;
-    }
+    public override string Text { get => Title; set => base.Text = Title = value; }
 
     /// <inheritdoc/>
-    public override Rune HotKeySpecifier
+    public override Rune HotKeySpecifier { get => base.HotKeySpecifier; set => TextFormatter.HotKeySpecifier = base.HotKeySpecifier = value; }
+
+    /// <inheritdoc/>
+    protected override bool OnActivating (CommandEventArgs args)
     {
-        get => base.HotKeySpecifier;
-        set => TextFormatter.HotKeySpecifier = base.HotKeySpecifier = value;
-    }
-
-    private bool? InvokeHotKeyOnNextPeer (ICommandContext commandContext)
-    {
-        if (RaiseHandlingHotKey (commandContext) == true)
+        // If Label can't focus, forward HotKey to the next peer in the SubView list
+        if (CanFocus || !HotKey.IsValid)
         {
-            return true;
+            return base.OnActivating (args);
         }
+        int me = SuperView?.SubViews.IndexOf (this) ?? -1;
 
-        if (CanFocus)
+        if (me == -1 || !(me < SuperView?.SubViews.Count - 1))
         {
-            SetFocus ();
-
-            // Always return true on hotkey, even if SetFocus fails because
-            // hotkeys are always handled by the View (unless RaiseHandlingHotKey cancels).
-            // This is the same behavior as the base (View).
-            return true;
+            return base.OnActivating (args);
         }
+        bool handled = SuperView?.SubViews.ElementAt (me + 1).InvokeCommand (Command.HotKey) == true;
 
-        if (HotKey.IsValid)
+        if (!handled)
         {
-            // If the Label has a hotkey, we need to find the next view in the subview list
-            int me = SuperView?.SubViews.IndexOf (this) ?? -1;
-
-            if (me != -1 && me < SuperView?.SubViews.Count - 1)
-            {
-                return SuperView?.SubViews.ElementAt (me + 1).InvokeCommand (Command.HotKey) == true;
-            }
+            return base.OnActivating (args);
         }
+        args.Handled = true;
 
-        return false;
+        return true;
     }
 
     /// <inheritdoc/>

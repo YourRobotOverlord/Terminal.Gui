@@ -1,5 +1,4 @@
 ﻿#nullable enable
-using System;
 using System.Text;
 
 namespace UICatalog.Scenarios;
@@ -37,20 +36,18 @@ public class ExpanderButton : Button
         NoDecorations = true;
         NoPadding = true;
 
+        AddCommand (Command.Accept, Toggle);
         AddCommand (Command.HotKey, Toggle);
         AddCommand (Command.Toggle, Toggle);
         KeyBindings.Add (Key.F4, Command.Toggle);
 
         Orientation = Orientation.Vertical;
 
-        HighlightStates = Terminal.Gui.ViewBase.MouseState.None;
+        MouseHighlightStates = MouseState.In;
 
         Initialized += ExpanderButton_Initialized;
 
-        EnabledChanged += (sender, args) =>
-                          {
-                              ShowHide ();
-                          };
+        EnabledChanged += (_, _) => { ShowHide (); };
     }
 
     private void ShowHide ()
@@ -85,7 +82,7 @@ public class ExpanderButton : Button
 
         if (SuperView is Border { } border)
         {
-            border.ThicknessChanged += (o, args) => ShowHide ();
+            border.ThicknessChanged += (_, _) => ShowHide ();
         }
     }
 
@@ -100,18 +97,14 @@ public class ExpanderButton : Button
     ///         bottom/left.
     ///     </para>
     /// </remarks>
-    public Orientation Orientation
-    {
-        get => _orientation;
-        set => OnOrientationChanging (value);
-    }
+    public Orientation Orientation { get => _orientation; set => OnOrientationChanging (value); }
 
     /// <summary>Called when the orientation is changing. Invokes the <see cref="OrientationChanging"/> event.</summary>
     /// <param name="newOrientation"></param>
     /// <returns>True of the event was cancelled.</returns>
     protected virtual bool OnOrientationChanging (Orientation newOrientation)
     {
-        CancelEventArgs<Orientation> args = new CancelEventArgs<Orientation> (in _orientation, ref newOrientation);
+        CancelEventArgs<Orientation> args = new (in _orientation, ref newOrientation);
         OrientationChanging?.Invoke (this, args);
 
         if (!args.Cancel)
@@ -120,17 +113,17 @@ public class ExpanderButton : Button
 
             if (Orientation == Orientation.Vertical)
             {
-                X = Pos.AnchorEnd ();
+                X = Pos.AnchorEnd () - 1;
                 Y = 0;
-                CollapseGlyph = new ('\u21d1'); // ⇑
-                ExpandGlyph = new ('\u21d3'); // ⇓
+                CollapseGlyph = new Rune ('\u21d1'); // ⇑
+                ExpandGlyph = new Rune ('\u21d3'); // ⇓
             }
             else
             {
                 X = 0;
-                Y = Pos.AnchorEnd ();
-                CollapseGlyph = new ('\u21d0'); // ⇐
-                ExpandGlyph = new ('\u21d2'); // ⇒
+                Y = Pos.AnchorEnd () - 1;
+                CollapseGlyph = new Rune ('\u21d0'); // ⇐
+                ExpandGlyph = new Rune ('\u21d2'); // ⇒
             }
 
             ExpandOrCollapse (Collapsed);
@@ -159,11 +152,7 @@ public class ExpanderButton : Button
     /// <summary>
     ///     Gets or sets a value indicating whether the view is collapsed.
     /// </summary>
-    public bool Collapsed
-    {
-        get => _collapsed;
-        set => OnCollapsedChanging (value);
-    }
+    public bool Collapsed { get => _collapsed; set => OnCollapsedChanging (value); }
 
     /// <summary>Called when the orientation is changing. Invokes the <see cref="OrientationChanging"/> event.</summary>
     /// <param name="newValue"></param>
@@ -222,12 +211,12 @@ public class ExpanderButton : Button
             // Collapse
             if (Orientation == Orientation.Vertical)
             {
-                _previousDim = superView!.Height!;
+                _previousDim = superView.Height;
                 superView.Height = 1;
             }
             else
             {
-                _previousDim = superView!.Width!;
+                _previousDim = superView.Width;
                 superView.Width = 1;
             }
         }

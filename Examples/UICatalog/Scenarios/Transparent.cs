@@ -8,11 +8,14 @@ public sealed class Transparent : Scenario
 {
     public override void Main ()
     {
+        ConfigurationManager.Enable (ConfigLocations.All);
+
         // Init
-        Application.Init ();
+        using IApplication app = Application.Create ();
+        app.Init ();
 
         // Setup - Create a top-level application window and configure it.
-        Window appWindow = new ()
+        using Window appWindow = new ()
         {
             Title = GetQuitKeyAndName (),
         };
@@ -31,7 +34,7 @@ public sealed class Transparent : Scenario
 
                                         e.Cancel = true;
                                     };
-        ViewportSettingsEditor viewportSettingsEditor = new ViewportSettingsEditor ()
+        ViewportSettingsEditor viewportSettingsEditor = new ()
         {
             Y = Pos.AnchorEnd (),
             //X = Pos.Right (adornmentsEditor),
@@ -39,7 +42,7 @@ public sealed class Transparent : Scenario
         };
         appWindow.Add (viewportSettingsEditor);
 
-        Button appButton = new Button ()
+        Button appButton = new ()
         {
             X = 10,
             Y = 4,
@@ -47,12 +50,12 @@ public sealed class Transparent : Scenario
         };
         appButton.Accepting += (sender, args) =>
                                {
-                                   MessageBox.Query ((sender as View)?.App, "AppButton", "Transparency is cool!", "_Ok");
+                                   MessageBox.Query ((sender as View)?.App!, "AppButton", "Transparency is cool!", Strings.btnOk);
                                    args.Handled = true;
                                };
         appWindow.Add (appButton);
 
-        var tv = new TransparentView ()
+        TransparentView tv = new ()
         {
             X = 2,
             Y = 2,
@@ -60,21 +63,17 @@ public sealed class Transparent : Scenario
             Height = Dim.Fill (10)
         };
 
-        appWindow.ViewportChanged += (sender, args) =>
+        appWindow.ViewportChanged += (_, _) =>
                                       {
                                           // Little hack to convert the Dim.Fill to actual size
                                           // So resizing works
-                                          tv.Width = appWindow!.Frame.Width - 10;
-                                          tv.Height = appWindow!.Frame.Height - 10;
+                                          tv.Width = appWindow.Frame.Width - 10;
+                                          tv.Height = appWindow.Frame.Height - 10;
                                       };
         appWindow.Add (tv);
 
         // Run - Start the application.
-        Application.Run (appWindow);
-        appWindow.Dispose ();
-
-        // Shutdown - Calling Application.Shutdown is required.
-        Application.Shutdown ();
+        app.Run (appWindow);
     }
 
     public class TransparentView : FrameView
@@ -88,7 +87,7 @@ public sealed class Transparent : Scenario
             BorderStyle = LineStyle.RoundedDotted;
             SchemeName = "Base";
 
-            var transparentSubView = new View ()
+            View transparentSubView = new ()
             {
                 Text = "Sizable/Movable SubView with border and shadow.",
                 Id = "transparentSubView",
@@ -103,20 +102,20 @@ public sealed class Transparent : Scenario
             transparentSubView.Border!.Thickness = new (1, 1, 1, 1);
             transparentSubView.SchemeName = "Dialog";
 
-            Button button = new Button ()
+            Button button = new ()
             {
                 Title = "_Opaque Shadow",
                 X = Pos.Center (),
                 Y = 2,
                 SchemeName = "Dialog",
             };
-            button.Accepting += (sender, args) =>
+            button.Accepting += (_, args) =>
                                 {
-                                    MessageBox.Query (App, "Clicked!", "Button in Transparent View", "_Ok");
+                                    MessageBox.Query (App!, "Clicked!", "Button in Transparent View", Strings.btnOk);
                                     args.Handled = true;
                                 };
 
-            var shortcut = new Shortcut ()
+            Shortcut shortcut = new ()
             {
                 Id = "shortcut",
                 X = Pos.Center (),
@@ -127,17 +126,17 @@ public sealed class Transparent : Scenario
                 SchemeName = "Base"
             };
 
-            button.ClearingViewport += (sender, args) =>
+            button.ClearingViewport += (_, args) =>
                                        {
                                            args.Cancel = true;
                                        };
 
-            // Subscribe to DrawingContent event to draw "TUI" 
+            // Subscribe to DrawingContent event to draw "TUI"
             DrawingContent += TransparentView_DrawingContent;
 
-            base.Add (button);
-            base.Add (shortcut);
-            base.Add (transparentSubView);
+            Add (button);
+            Add (shortcut);
+            Add (transparentSubView);
 
             Padding!.Thickness = new (1);
             Padding.Text = "This is the Padding";
@@ -171,7 +170,7 @@ public sealed class Transparent : Scenario
             FillRect (iStem, Glyphs.BlackCircle);
             FillRect (iBottom, Glyphs.BlackCircle);
 
-            Region tuiRegion = new Region (ViewportToScreen (tTop));
+            Region tuiRegion = new (ViewportToScreen (tTop));
             tuiRegion.Union (ViewportToScreen (tStem));
             tuiRegion.Union (ViewportToScreen (uLeft));
             tuiRegion.Union (ViewportToScreen (uBottom));
@@ -208,7 +207,7 @@ public sealed class Transparent : Scenario
             FillRect (iStem, Glyphs.BlackCircle);
 
             // Register the drawn region for "Hi" to enable transparency effects
-            Region hiRegion = new Region (ViewportToScreen (hLeft));
+            Region hiRegion = new (ViewportToScreen (hLeft));
             hiRegion.Union (ViewportToScreen (hMiddle));
             hiRegion.Union (ViewportToScreen (hRight));
             hiRegion.Union (ViewportToScreen (iDot));
@@ -219,11 +218,102 @@ public sealed class Transparent : Scenario
             return false;
         }
 
+        protected override bool OnRenderingLineCanvas ()
+        {
+            // Draw "dotnet" using LineCanvas
+            Point screenPos = ViewportToScreen (new Point (7, 16));
+            DrawDotnet (LineCanvas, screenPos.X, screenPos.Y, LineStyle.Single, GetAttributeForRole (VisualRole.Normal));
+
+            return false;
+        }
+
         /// <inheritdoc />
         protected override bool OnClearingViewport () { return false; }
 
         /// <inheritdoc />
-        protected override bool OnMouseEvent (MouseEventArgs mouseEvent) { return false; }
+        protected override bool OnMouseEvent (Mouse mouse) { return false; }
+
+
+        /// <summary>
+        /// Draws "dotnet" text using LineCanvas. The 'd' is 8 cells high.
+        /// </summary>
+        /// <param name="canvas">The LineCanvas to draw on</param>
+        /// <param name="x">Starting X position</param>
+        /// <param name="y">Starting Y position</param>
+        /// <param name="style">Line style to use</param>
+        /// <param name="attribute">Optional attribute for the lines</param>
+        private void DrawDotnet (LineCanvas canvas, int x, int y, LineStyle style = LineStyle.Single, Attribute? attribute = null)
+        {
+            int currentX = x;
+            int letterHeight = 8;
+            int letterSpacing = 2;
+
+            // Letter 'd' - lowercase, height 8
+            // Vertical stem on right (goes up full 8 cells)
+            canvas.AddLine (new (currentX + 3, y), letterHeight, Orientation.Vertical, style, attribute);
+            // Top horizontal
+            canvas.AddLine (new (currentX, y + 3), 4, Orientation.Horizontal, style, attribute);
+            // Left vertical (only bottom 5 cells, leaving top 3 for ascender space)
+            canvas.AddLine (new (currentX, y + 3), 5, Orientation.Vertical, style, attribute);
+            // Bottom horizontal
+            canvas.AddLine (new (currentX, y + 7), 4, Orientation.Horizontal, style, attribute);
+            currentX += 4 + letterSpacing;
+
+            // Letter 'o' - height 5 (x-height)
+            int oY = y + 3; // Align with x-height (leaving 3 cells for ascenders)
+                            // Top
+            canvas.AddLine (new (currentX, oY), 4, Orientation.Horizontal, style, attribute);
+            // Left
+            canvas.AddLine (new (currentX, oY), 5, Orientation.Vertical, style, attribute);
+            // Right
+            canvas.AddLine (new (currentX + 3, oY), 5, Orientation.Vertical, style, attribute);
+            // Bottom
+            canvas.AddLine (new (currentX, oY + 4), 4, Orientation.Horizontal, style, attribute);
+            currentX += 4 + letterSpacing;
+
+            // Letter 't' - height 7 (has ascender above x-height)
+            int tY = y + 1; // Starts 1 cell above x-height
+                            // Vertical stem
+            canvas.AddLine (new (currentX + 1, tY), 7, Orientation.Vertical, style, attribute);
+            // Top cross bar (at x-height)
+            canvas.AddLine (new (currentX, tY + 2), 3, Orientation.Horizontal, style, attribute);
+            // Bottom horizontal (foot)
+            canvas.AddLine (new (currentX + 1, tY + 6), 2, Orientation.Horizontal, style, attribute);
+            currentX += 3 + letterSpacing;
+
+            // Letter 'n' - height 5 (x-height)
+            int nY = y + 3;
+            // Left vertical
+            canvas.AddLine (new (currentX, nY), 5, Orientation.Vertical, style, attribute);
+            // Top horizontal
+            canvas.AddLine (new (currentX + 1, nY), 3, Orientation.Horizontal, style, attribute);
+            // Right vertical
+            canvas.AddLine (new (currentX + 3, nY), 5, Orientation.Vertical, style, attribute);
+            currentX += 4 + letterSpacing;
+
+            // Letter 'e' - height 5 (x-height)
+            int eY = y + 3;
+            // Top
+            canvas.AddLine (new (currentX, eY), 4, Orientation.Horizontal, style, attribute);
+            // Left
+            canvas.AddLine (new (currentX, eY), 5, Orientation.Vertical, style, attribute);
+            // Right
+            canvas.AddLine (new (currentX + 3, eY), 3, Orientation.Vertical, style, attribute);
+            // Middle horizontal bar
+            canvas.AddLine (new (currentX, eY + 2), 4, Orientation.Horizontal, style, attribute);
+            // Bottom
+            canvas.AddLine (new (currentX, eY + 4), 4, Orientation.Horizontal, style, attribute);
+            currentX += 4 + letterSpacing;
+
+            // Letter 't' - height 7 (has ascender above x-height) - second 't'
+            int t2Y = y + 1;
+            // Vertical stem
+            canvas.AddLine (new (currentX + 1, t2Y), 7, Orientation.Vertical, style, attribute);
+            // Top cross bar (at x-height)
+            canvas.AddLine (new (currentX, t2Y + 2), 3, Orientation.Horizontal, style, attribute);
+            // Bottom horizontal (foot)
+            canvas.AddLine (new (currentX + 1, t2Y + 6), 2, Orientation.Horizontal, style, attribute);
+        }
     }
 
 }

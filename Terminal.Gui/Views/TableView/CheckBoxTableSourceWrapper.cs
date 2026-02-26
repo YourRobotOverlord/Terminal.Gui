@@ -1,5 +1,5 @@
 #nullable disable
-﻿
+
 namespace Terminal.Gui.Views;
 
 /// <summary>
@@ -28,9 +28,9 @@ public abstract class CheckBoxTableSourceWrapperBase : ITableSource
         Wrapping = toWrap;
         this.tableView = tableView;
 
-        tableView.KeyBindings.ReplaceCommands (Key.Space, Command.Select);
+        tableView.KeyBindings.ReplaceCommands (Key.Space, Command.Toggle);
 
-        tableView.MouseClick += TableView_MouseClick;
+        tableView.Activating += TableView_Activating;
         tableView.CellToggled += TableView_CellToggled;
     }
 
@@ -152,15 +152,22 @@ public abstract class CheckBoxTableSourceWrapperBase : ITableSource
         tableView.SetNeedsDraw ();
     }
 
-    private void TableView_MouseClick (object sender, MouseEventArgs e)
+#nullable enable
+    private void TableView_Activating (object? sender, CommandEventArgs e)
     {
-        // we only care about clicks (not movements)
-        if (!e.Flags.HasFlag (MouseFlags.Button1Clicked))
+        // Only handle mouse clicks, not keyboard selections
+        if (e.Context?.Binding is not MouseBinding { MouseEvent: { } mouse })
         {
             return;
         }
 
-        Point? hit = tableView.ScreenToCell (e.Position.X, e.Position.Y, out int? headerIfAny);
+        // we only care about clicks (not movements)
+        if (!mouse.Flags.HasFlag (MouseFlags.LeftButtonClicked))
+        {
+            return;
+        }
+
+        Point? hit = tableView.ScreenToCell (mouse.Position!.Value.X, mouse.Position!.Value.Y, out int? headerIfAny);
 
         if (headerIfAny.HasValue && headerIfAny.Value == 0)
         {

@@ -1,19 +1,18 @@
-#nullable enable
+﻿using System.Text;
 using UnitTests;
 using Xunit.Abstractions;
 
 namespace ViewBaseTests.Drawing;
 
-public class ViewDrawingClippingTests () : FakeDriverBase
+public class ViewDrawingClippingTests (ITestOutputHelper output) : TestDriverBase
 {
     #region GetClip / SetClip Tests
-
 
     [Fact]
     public void GetClip_ReturnsDriverClip ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        var region = new Region (new Rectangle (10, 10, 20, 20));
+        IDriver driver = CreateTestDriver ();
+        var region = new Region (new (10, 10, 20, 20));
         driver.Clip = region;
         View view = new () { Driver = driver };
 
@@ -24,24 +23,10 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     }
 
     [Fact]
-    public void SetClip_NullRegion_DoesNothing ()
-    {
-        IDriver driver = CreateFakeDriver (80, 25);
-        var original = new Region (new Rectangle (5, 5, 10, 10));
-        driver.Clip = original;
-
-        View view = new () { Driver = driver };
-
-        view.SetClip (null);
-
-        Assert.Equal (original, driver.Clip);
-    }
-
-    [Fact]
     public void SetClip_ValidRegion_SetsDriverClip ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        var region = new Region (new Rectangle (10, 10, 30, 30));
+        IDriver driver = CreateTestDriver ();
+        var region = new Region (new (10, 10, 30, 30));
         View view = new () { Driver = driver };
 
         view.SetClip (region);
@@ -56,8 +41,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void SetClipToScreen_ReturnsPreviousClip ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        var original = new Region (new Rectangle (5, 5, 10, 10));
+        IDriver driver = CreateTestDriver ();
+        var original = new Region (new (5, 5, 10, 10));
         driver.Clip = original;
         View view = new () { Driver = driver };
 
@@ -70,7 +55,7 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void SetClipToScreen_SetsClipToScreen ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         View view = new () { Driver = driver };
 
         view.SetClipToScreen ();
@@ -87,15 +72,15 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     public void ExcludeFromClip_Rectangle_NullDriver_DoesNotThrow ()
     {
         View view = new () { Driver = null };
-        var exception = Record.Exception (() => view.ExcludeFromClip (new Rectangle (5, 5, 10, 10)));
+        Exception? exception = Record.Exception (() => view.ExcludeFromClip (new Rectangle (5, 5, 10, 10)));
         Assert.Null (exception);
     }
 
     [Fact]
     public void ExcludeFromClip_Rectangle_ExcludesArea ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (new Rectangle (0, 0, 80, 25));
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (new (0, 0, 80, 25));
         View view = new () { Driver = driver };
 
         var toExclude = new Rectangle (10, 10, 20, 20);
@@ -111,19 +96,18 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     {
         View view = new () { Driver = null };
 
-        var exception = Record.Exception (() => view.ExcludeFromClip (new Region (new Rectangle (5, 5, 10, 10))));
+        Exception? exception = Record.Exception (() => view.ExcludeFromClip (new Region (new (5, 5, 10, 10))));
         Assert.Null (exception);
     }
 
     [Fact]
     public void ExcludeFromClip_Region_ExcludesArea ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (new Rectangle (0, 0, 80, 25));
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (new (0, 0, 80, 25));
         View view = new () { Driver = driver };
 
-
-        var toExclude = new Region (new Rectangle (10, 10, 20, 20));
+        var toExclude = new Region (new (10, 10, 20, 20));
         view.ExcludeFromClip (toExclude);
 
         // Verify the region was excluded
@@ -150,8 +134,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void AddFrameToClip_IntersectsWithFrame ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -171,7 +155,7 @@ public class ViewDrawingClippingTests () : FakeDriverBase
         Assert.NotNull (driver.Clip);
 
         // The clip should now be the intersection of the screen and the view's frame
-        Rectangle expectedBounds = new Rectangle (1, 1, 20, 20);
+        var expectedBounds = new Rectangle (1, 1, 20, 20);
         Assert.Equal (expectedBounds, driver.Clip.GetBounds ());
     }
 
@@ -194,8 +178,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void AddViewportToClip_IntersectsWithViewport ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -222,8 +206,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void AddViewportToClip_WithClipContentOnly_LimitsToVisibleContent ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -259,8 +243,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void ClipRegions_StackCorrectly_WithNestedViews ()
     {
-        IDriver driver = CreateFakeDriver (100, 100);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver (100, 100);
+        driver.Clip = new (driver.Screen);
 
         var superView = new View
         {
@@ -278,7 +262,7 @@ public class ViewDrawingClippingTests () : FakeDriverBase
             X = 5,
             Y = 5,
             Width = 30,
-            Height = 30,
+            Height = 30
         };
         superView.Add (view);
         superView.LayoutSubViews ();
@@ -296,14 +280,15 @@ public class ViewDrawingClippingTests () : FakeDriverBase
 
         // Restore superView clip
         view.SetClip (superViewClip);
+
         //   Assert.Equal (superViewBounds, driver.Clip.GetBounds ());
     }
 
     [Fact]
     public void ClipRegions_RespectPreviousClip ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        var initialClip = new Region (new Rectangle (20, 20, 40, 40));
+        IDriver driver = CreateTestDriver ();
+        var initialClip = new Region (new (20, 20, 40, 40));
         driver.Clip = initialClip;
 
         var view = new View
@@ -322,9 +307,9 @@ public class ViewDrawingClippingTests () : FakeDriverBase
 
         // The new clip should be the intersection of the initial clip and the view's frame
         Rectangle expected = Rectangle.Intersect (
-                                                   initialClip.GetBounds (),
-                                                   view.FrameToScreen ()
-                                                  );
+                                                  initialClip.GetBounds (),
+                                                  view.FrameToScreen ()
+                                                 );
 
         Assert.Equal (expected, driver.Clip.GetBounds ());
 
@@ -340,8 +325,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void AddFrameToClip_EmptyFrame_WorksCorrectly ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -364,18 +349,18 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void AddViewportToClip_EmptyViewport_WorksCorrectly ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
             X = 1,
             Y = 1,
-            Width = 1,  // Minimal size to have adornments
+            Width = 1, // Minimal size to have adornments
             Height = 1,
             Driver = driver
         };
-        view.Border!.Thickness = new Thickness (1);
+        view.Border!.Thickness = new (1);
         view.BeginInit ();
         view.EndInit ();
         view.LayoutSubViews ();
@@ -391,12 +376,12 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void ClipRegions_OutOfBounds_HandledCorrectly ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
-            X = 100,  // Outside screen bounds
+            X = 100, // Outside screen bounds
             Y = 100,
             Width = 20,
             Height = 20,
@@ -409,6 +394,7 @@ public class ViewDrawingClippingTests () : FakeDriverBase
         Region? previous = view.AddFrameToClip ();
 
         Assert.NotNull (previous);
+
         // The clip should be empty since the view is outside the screen
         Assert.True (driver.Clip.IsEmpty () || !driver.Clip.Contains (100, 100));
     }
@@ -420,8 +406,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void Clip_Set_BeforeDraw_ClipsDrawing ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        var clip = new Region (new Rectangle (10, 10, 10, 10));
+        IDriver driver = CreateTestDriver ();
+        var clip = new Region (new (10, 10, 10, 10));
         driver.Clip = clip;
 
         var view = new View
@@ -445,8 +431,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void Draw_UpdatesDriverClip ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -464,14 +450,15 @@ public class ViewDrawingClippingTests () : FakeDriverBase
 
         // Clip should be updated to exclude the drawn view
         Assert.NotNull (driver.Clip);
+
         // Assert.False (driver.Clip.Contains (15, 15)); // Point inside the view should be excluded
     }
 
     [Fact]
     public void Draw_WithSubViews_ClipsCorrectly ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var superView = new View
         {
@@ -491,13 +478,285 @@ public class ViewDrawingClippingTests () : FakeDriverBase
 
         // Both superView and view should be excluded from clip
         Assert.NotNull (driver.Clip);
+
         //    Assert.False (driver.Clip.Contains (15, 15)); // Point in superView should be excluded
+    }
+
+    /// <summary>
+    /// Tests that wide glyphs (🍎) are correctly clipped when overlapped by bordered subviews
+    /// at different column alignments (even vs odd). Demonstrates:
+    /// 1. Full clipping at even columns (X=0, X=2)
+    /// 2. Partial clipping at odd columns (X=1) resulting in half-glyphs (�)
+    /// 3. The recursive draw flow and clip exclusion mechanism
+    /// 
+    /// For detailed draw flow documentation, see ViewDrawingClippingTests.DrawFlow.md
+    /// </summary>
+    [Fact]
+    public void Draw_WithBorderSubView_DrawsCorrectly ()
+    {
+        IApplication app = Application.Create ();
+        app.Init (DriverRegistry.Names.ANSI);
+        IDriver driver = app!.Driver!;
+        driver.SetScreenSize (30, 20);
+
+        driver!.Clip = new (driver.Screen);
+
+        var superView = new Runnable ()
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Auto () + 4,
+            Height = Dim.Auto () + 1,
+            Driver = driver
+        };
+
+        Rune codepoint = Glyphs.Apple;
+
+        superView.DrawingContent += (s, e) =>
+                                    {
+                                        var view = s as View;
+                                        for (var r = 0; r < view!.Viewport.Height; r++)
+                                        {
+                                            for (var c = 0; c < view.Viewport.Width; c += 2)
+                                            {
+                                                if (codepoint != default (Rune))
+                                                {
+                                                    view.AddRune (c, r, codepoint);
+                                                }
+                                            }
+                                        }
+                                        e.DrawContext?.AddDrawnRectangle (view.Viewport);
+                                        e.Cancel = true;
+                                    };
+
+        var viewWithBorderAtX0 = new View
+        {
+            Text = "viewWithBorderAtX0",
+            BorderStyle = LineStyle.Dashed,
+            X = 0,
+            Y = 1,
+            Width = Dim.Auto (),
+            Height = 3
+        };
+
+        var viewWithBorderAtX1 = new View
+        {
+            Text = "viewWithBorderAtX1",
+            BorderStyle = LineStyle.Dashed,
+            X = 1,
+            Y = Pos.Bottom (viewWithBorderAtX0) + 1,
+            Width = Dim.Auto (),
+            Height = 3
+        };
+
+        var viewWithBorderAtX2 = new View
+        {
+            Text = "viewWithBorderAtX2",
+            BorderStyle = LineStyle.Dashed,
+            X = 2,
+            Y = Pos.Bottom (viewWithBorderAtX1) + 1,
+            Width = Dim.Auto (),
+            Height = 3
+        };
+
+        superView.Add (viewWithBorderAtX0, viewWithBorderAtX1, viewWithBorderAtX2);
+        driver.GetOutputBuffer ().SetWideGlyphReplacement ((Rune)'①');
+        app.Begin (superView);
+        // Begin calls LayoutAndDraw, so no need to call it again here
+        // app.LayoutAndDraw();
+
+        DriverAssert.AssertDriverContentsAre (
+                                                       """
+                                                       🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎
+                                                       ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐🍎🍎🍎
+                                                       ┆viewWithBorderAtX0┆🍎🍎🍎
+                                                       └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘🍎🍎🍎
+                                                       🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎
+                                                       ①┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐ 🍎🍎
+                                                       ①┆viewWithBorderAtX1┆ 🍎🍎
+                                                       ①└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘ 🍎🍎
+                                                       🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎
+                                                       🍎┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐🍎🍎
+                                                       🍎┆viewWithBorderAtX2┆🍎🍎
+                                                       🍎└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘🍎🍎
+                                                       🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎
+                                                       """,
+                                                       output,
+                                                       driver);
+
+        DriverAssert.AssertDriverOutputIs (@"\x1b[39m\x1b[49m🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐🍎🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m┆viewWithBorderAtX0┆🍎🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘🍎🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m①┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐ 🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m①┆viewWithBorderAtX1┆ 🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m①└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘ 🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m🍎┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m🍎┆viewWithBorderAtX2┆🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m🍎└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m    \x1b[39m\x1b[49m🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m",
+                                           output, driver);
+
+        DriverImpl? driverImpl = driver as DriverImpl;
+        AnsiOutput? ansiOutput = driverImpl!.GetOutput () as AnsiOutput;
+
+        output.WriteLine ("Driver Output After Redraw:\n" + driver.GetOutput().GetLastOutput());
+
+        // BUGBUG: Border.set_LineStyle does not call SetNeedsDraw
+        viewWithBorderAtX1!.Border!.LineStyle = LineStyle.Single;
+        viewWithBorderAtX1.Border!.SetNeedsDraw ();
+        app.LayoutAndDraw ();
+
+        DriverAssert.AssertDriverContentsAre (
+                                              """
+                                              🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎
+                                              ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐🍎🍎🍎
+                                              ┆viewWithBorderAtX0┆🍎🍎🍎
+                                              └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘🍎🍎🍎
+                                              🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎
+                                              ①┌──────────────────┐ 🍎🍎
+                                              ①│viewWithBorderAtX1│ 🍎🍎
+                                              ①└──────────────────┘ 🍎🍎
+                                              🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎
+                                              🍎┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐🍎🍎
+                                              🍎┆viewWithBorderAtX2┆🍎🍎
+                                              🍎└╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘🍎🍎
+                                              🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎🍎
+                                              """,
+                                              output,
+                                              driver);
+
+        // After a full redraw, all cells should be clean
+        foreach (Cell cell in driver.Contents!)
+        {
+            Assert.False (cell.IsDirty);
+        }
+    }
+
+    [Fact]
+    public void Draw_WithBorderSubView_At_Col1_In_WideGlyph_DrawsCorrectly ()
+    {
+        IApplication app = Application.Create ();
+        app.Init (DriverRegistry.Names.ANSI);
+        IDriver driver = app!.Driver!;
+        driver.SetScreenSize (6, 3);  // Minimal: 6 cols wide (3 for content + 2 for border + 1), 3 rows high (1 for content + 2 for border)
+
+        driver!.Clip = new (driver.Screen);
+
+        var superView = new Runnable ()
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill (),
+            Height = Dim.Fill (),
+            Driver = driver
+        };
+
+        Rune codepoint = Glyphs.Apple;
+
+        superView.DrawingContent += (s, e) =>
+                                    {
+                                        View? view = s as View;
+                                        view?.AddStr (0, 0, "🍎🍎🍎🍎");
+                                        view?.AddStr (0, 1, "🍎🍎🍎🍎");
+                                        view?.AddStr (0, 2, "🍎🍎🍎🍎");
+                                        e.DrawContext?.AddDrawnRectangle (view!.Viewport);
+                                        e.Cancel = true;
+                                    };
+
+        // Minimal border at X=1 (odd column), Width=3, Height=3 (includes border)
+        var viewWithBorder = new View
+        {
+            Text = "X",
+            BorderStyle = LineStyle.Single,
+            X = 1,
+            Y = 0,
+            Width = 3,
+            Height = 3
+        };
+
+        superView.Add (viewWithBorder);
+        driver.GetOutputBuffer ().SetWideGlyphReplacement ((Rune)'①');
+        app.Begin (superView);
+
+        DriverAssert.AssertDriverContentsAre (
+                                              """
+                                              ①┌─┐🍎
+                                              ①│X│🍎
+                                              ①└─┘🍎
+                                              """,
+                                              output,
+                                              driver);
+
+        DriverAssert.AssertDriverOutputIs (@"\x1b[39m\x1b[49m①┌─┐🍎①│X│🍎①└─┘🍎",
+            output, driver);
+
+        DriverImpl? driverImpl = driver as DriverImpl;
+        AnsiOutput? ansiOutput = driverImpl!.GetOutput () as AnsiOutput;
+
+        output.WriteLine ("Driver Output:\n" + ansiOutput!.GetLastOutput ());
+    }
+
+
+    [Fact]
+    public void Draw_WithBorderSubView_At_Col3_In_WideGlyph_DrawsCorrectly ()
+    {
+        IApplication app = Application.Create ();
+        app.Init (DriverRegistry.Names.ANSI);
+        IDriver driver = app!.Driver!;
+        driver.SetScreenSize (6, 3);  // Screen: 6 cols wide, 3 rows high; enough for 3x3 border subview at col 3 plus content on the left
+
+        driver!.Clip = new (driver.Screen);
+
+        var superView = new Runnable ()
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill (),
+            Height = Dim.Fill (),
+            Driver = driver
+        };
+
+        Rune codepoint = Glyphs.Apple;
+
+        superView.DrawingContent += (s, e) =>
+        {
+            View? view = s as View;
+            view?.AddStr (0, 0, "🍎🍎🍎🍎");
+            view?.AddStr (0, 1, "🍎🍎🍎🍎");
+            view?.AddStr (0, 2, "🍎🍎🍎🍎");
+            e.DrawContext?.AddDrawnRectangle (view!.Viewport);
+            e.Cancel = true;
+        };
+
+        // Minimal border at X=3 (odd column), Width=3, Height=3 (includes border)
+        var viewWithBorder = new View
+        {
+            Text = "X",
+            BorderStyle = LineStyle.Single,
+            X = 3,
+            Y = 0,
+            Width = 3,
+            Height = 3
+        };
+
+        driver.GetOutputBuffer ().SetWideGlyphReplacement ((Rune)'①');
+
+        superView.Add (viewWithBorder);
+        app.Begin (superView);
+
+        DriverAssert.AssertDriverContentsAre (
+                                              """
+                                              🍎①┌─┐
+                                              🍎①│X│
+                                              🍎①└─┘
+                                              """,
+                                              output,
+                                              driver);
+
+        DriverAssert.AssertDriverOutputIs (@"\x1b[39m\x1b[49m🍎①┌─┐🍎①│X│🍎①└─┘",
+            output, driver);
+
+        DriverImpl? driverImpl = driver as DriverImpl;
+        AnsiOutput? ansiOutput = driverImpl!.GetOutput () as AnsiOutput;
+
+        output.WriteLine ("Driver Output:\n" + ansiOutput!.GetLastOutput ());
     }
 
     [Fact]
     public void Draw_NonVisibleView_DoesNotUpdateClip ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         var originalClip = new Region (driver.Screen);
         driver.Clip = originalClip.Clone ();
 
@@ -522,8 +781,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void ExcludeFromClip_ExcludesRegion ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -542,13 +801,12 @@ public class ViewDrawingClippingTests () : FakeDriverBase
 
         Assert.NotNull (driver.Clip);
         Assert.False (driver.Clip.Contains (20, 20)); // Point inside excluded rect should not be in clip
-
     }
 
     [Fact]
     public void ExcludeFromClip_WithNullClip_DoesNotThrow ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = null!;
 
         var view = new View
@@ -560,10 +818,9 @@ public class ViewDrawingClippingTests () : FakeDriverBase
             Driver = driver
         };
 
-        var exception = Record.Exception (() => view.ExcludeFromClip (new Rectangle (15, 15, 10, 10)));
+        Exception? exception = Record.Exception (() => view.ExcludeFromClip (new Rectangle (15, 15, 10, 10)));
 
         Assert.Null (exception);
-
     }
 
     #endregion
@@ -573,7 +830,7 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void SetClip_SetsDriverClip ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
 
         var view = new View
         {
@@ -584,17 +841,17 @@ public class ViewDrawingClippingTests () : FakeDriverBase
             Driver = driver
         };
 
-        var newClip = new Region (new Rectangle (5, 5, 30, 30));
+        var newClip = new Region (new (5, 5, 30, 30));
         view.SetClip (newClip);
 
         Assert.Equal (newClip, driver.Clip);
     }
 
-    [Fact (Skip = "See BUGBUG in SetClip")]
+    [Fact]// (Skip = "See BUGBUG in SetClip")]
     public void SetClip_WithNullClip_ClearsClip ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (new Rectangle (10, 10, 20, 20));
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (new (10, 10, 20, 20));
 
         var view = new View
         {
@@ -613,7 +870,7 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void Draw_Excludes_View_From_Clip ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         var originalClip = new Region (driver.Screen);
         driver.Clip = originalClip.Clone ();
 
@@ -641,8 +898,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void Draw_EmptyViewport_DoesNotCrash ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -652,13 +909,13 @@ public class ViewDrawingClippingTests () : FakeDriverBase
             Height = 1,
             Driver = driver
         };
-        view.Border!.Thickness = new Thickness (1);
+        view.Border!.Thickness = new (1);
         view.BeginInit ();
         view.EndInit ();
         view.LayoutSubViews ();
 
         // With border of 1, viewport should be empty (0x0 or negative)
-        var exception = Record.Exception (() => view.Draw ());
+        Exception? exception = Record.Exception (() => view.Draw ());
 
         Assert.Null (exception);
     }
@@ -666,8 +923,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void Draw_VeryLargeView_HandlesClippingCorrectly ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -681,7 +938,7 @@ public class ViewDrawingClippingTests () : FakeDriverBase
         view.EndInit ();
         view.LayoutSubViews ();
 
-        var exception = Record.Exception (() => view.Draw ());
+        Exception? exception = Record.Exception (() => view.Draw ());
 
         Assert.Null (exception);
     }
@@ -689,8 +946,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void Draw_NegativeCoordinates_HandlesClippingCorrectly ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -704,7 +961,7 @@ public class ViewDrawingClippingTests () : FakeDriverBase
         view.EndInit ();
         view.LayoutSubViews ();
 
-        var exception = Record.Exception (() => view.Draw ());
+        Exception? exception = Record.Exception (() => view.Draw ());
 
         Assert.Null (exception);
     }
@@ -712,8 +969,8 @@ public class ViewDrawingClippingTests () : FakeDriverBase
     [Fact]
     public void Draw_OutOfScreenBounds_HandlesClippingCorrectly ()
     {
-        IDriver driver = CreateFakeDriver (80, 25);
-        driver.Clip = new Region (driver.Screen);
+        IDriver driver = CreateTestDriver ();
+        driver.Clip = new (driver.Screen);
 
         var view = new View
         {
@@ -727,7 +984,7 @@ public class ViewDrawingClippingTests () : FakeDriverBase
         view.EndInit ();
         view.LayoutSubViews ();
 
-        var exception = Record.Exception (() => view.Draw ());
+        Exception? exception = Record.Exception (() => view.Draw ());
 
         Assert.Null (exception);
     }

@@ -1,7 +1,6 @@
 ﻿#nullable enable
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Reflection;
+using Terminal.Gui.ViewBase;
 
 namespace UICatalog.Scenarios;
 
@@ -20,9 +19,9 @@ public class BorderEditor : AdornmentEditor
 
     private void BorderEditor_AdornmentChanged (object? sender, EventArgs e)
     {
-        _ckbTitle!.CheckedState = ((Border)AdornmentToEdit!).Settings.FastHasFlags (BorderSettings.Title) ? CheckState.Checked : CheckState.UnChecked;
+        _ckbTitle!.Value = ((Border)AdornmentToEdit!).Settings.FastHasFlags (BorderSettings.Title) ? CheckState.Checked : CheckState.UnChecked;
         _osBorderStyle!.Value = ((Border)AdornmentToEdit).LineStyle;
-        _ckbGradient!.CheckedState = ((Border)AdornmentToEdit).Settings.FastHasFlags (BorderSettings.Gradient) ? CheckState.Checked : CheckState.UnChecked;
+        _ckbGradient!.Value = ((Border)AdornmentToEdit).Settings.FastHasFlags (BorderSettings.Gradient) ? CheckState.Checked : CheckState.UnChecked;
     }
 
     private void BorderEditor_Initialized (object? sender, EventArgs e)
@@ -33,10 +32,10 @@ public class BorderEditor : AdornmentEditor
 
             Y = Pos.Bottom (SubViews.ToArray () [^1]),
             Width = Dim.Fill (),
-            Value = ((Border)AdornmentToEdit!)?.LineStyle ?? LineStyle.None,
+            Value = (AdornmentToEdit as Border)?.LineStyle ?? LineStyle.None,
             BorderStyle = LineStyle.Single,
             Title = "Border St_yle",
-            SuperViewRendersLineCanvas = true,
+            SuperViewRendersLineCanvas = true
         };
         Add (_osBorderStyle);
 
@@ -47,12 +46,12 @@ public class BorderEditor : AdornmentEditor
             X = 0,
             Y = Pos.Bottom (_osBorderStyle),
 
-            CheckedState = CheckState.Checked,
+            Value = CheckState.Checked,
             SuperViewRendersLineCanvas = true,
-            Text = "Title",
+            Text = "Title"
         };
 
-        _ckbTitle.CheckedStateChanging += OnCkbTitleOnToggle;
+        _ckbTitle.ValueChanging += OnCkbTitleOnToggle;
         Add (_ckbTitle);
 
         _ckbGradient = new ()
@@ -60,63 +59,67 @@ public class BorderEditor : AdornmentEditor
             X = 0,
             Y = Pos.Bottom (_ckbTitle),
 
-            CheckedState = CheckState.Checked,
+            Value = CheckState.Checked,
             SuperViewRendersLineCanvas = true,
-            Text = "Gradient",
+            Text = "Gradient"
         };
 
-        _ckbGradient.CheckedStateChanging += OnCkbGradientOnToggle;
+        _ckbGradient.ValueChanging += OnCkbGradientOnToggle;
         Add (_ckbGradient);
 
         return;
 
         void OnRbBorderStyleOnValueChanged (object? s, EventArgs<LineStyle?> args)
         {
-            LineStyle prevBorderStyle = AdornmentToEdit!.BorderStyle;
-
-            if (args.Value is { })
+            if (AdornmentToEdit is not Border border)
             {
-                ((Border)AdornmentToEdit).LineStyle = (LineStyle)args.Value;
+                return;
             }
 
-            if (((Border)AdornmentToEdit).LineStyle == LineStyle.None)
+            if (args.Value is not null)
             {
-                ((Border)AdornmentToEdit).Thickness = new (0);
-            }
-            else if (prevBorderStyle == LineStyle.None && ((Border)AdornmentToEdit).LineStyle != LineStyle.None)
-            {
-                ((Border)AdornmentToEdit).Thickness = new (1);
+                border.LineStyle = (LineStyle)args.Value;
             }
 
-            ((Border)AdornmentToEdit).SetNeedsDraw ();
+            border.SetNeedsDraw ();
             SetNeedsLayout ();
         }
 
-        void OnCkbTitleOnToggle (object? _, ResultEventArgs<CheckState> args)
+        void OnCkbTitleOnToggle (object? _, ValueChangingEventArgs<CheckState> args)
         {
-            if (args.Result == CheckState.Checked)
+            if (AdornmentToEdit is not Border border)
+            {
+                return;
+            }
+
+            if (args.NewValue == CheckState.Checked)
 
             {
-                ((Border)AdornmentToEdit!).Settings |= BorderSettings.Title;
+                border.Settings |= BorderSettings.Title;
             }
             else
 
             {
-                ((Border)AdornmentToEdit!).Settings &= ~BorderSettings.Title;
+                border.Settings &= ~BorderSettings.Title;
             }
         }
 
-        void OnCkbGradientOnToggle (object? _, ResultEventArgs<CheckState> args)
+        void OnCkbGradientOnToggle (object? _, ValueChangingEventArgs<CheckState> args)
         {
-            if (args.Result == CheckState.Checked)
+            if (AdornmentToEdit is not Border border)
+            {
+                return;
+            }
+
+            if (args.NewValue == CheckState.Checked)
 
             {
-                ((Border)AdornmentToEdit!).Settings |= BorderSettings.Gradient;
+                border.Settings |= BorderSettings.Gradient;
             }
             else
 
             {
-                ((Border)AdornmentToEdit!).Settings &= ~BorderSettings.Gradient;
+                border.Settings &= ~BorderSettings.Gradient;
             }
         }
     }
