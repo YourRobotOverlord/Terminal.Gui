@@ -6,6 +6,20 @@ namespace Terminal.Gui.Views;
 /// <summary>
 ///     The abstract base class for <see cref="OptionSelector{TEnum}"/> and <see cref="FlagSelector{TFlagsEnum}"/>.
 /// </summary>
+/// <remarks>
+///     <para>Default key bindings:</para>
+///     <list type="table">
+///         <listheader>
+///             <term>Key</term> <description>Action</description>
+///         </listheader>
+///         <item>
+///             <term>Up / Left</term> <description>Moves to the previous option.</description>
+///         </item>
+///         <item>
+///             <term>Down / Right</term> <description>Moves to the next option.</description>
+///         </item>
+///     </list>
+/// </remarks>
 public abstract class SelectorBase : View, IOrientation, IValue<int?>
 {
     /// <summary>
@@ -45,6 +59,9 @@ public abstract class SelectorBase : View, IOrientation, IValue<int?>
         AddCommand (Command.Up, () => MovePrevious (Command.Up));
         AddCommand (Command.Left, () => MovePrevious (Command.Left));
     }
+
+    // Stores the int value for each checkbox (replaced use of Data property)
+    private readonly Dictionary<CheckBox, int> _checkBoxValues = new ();
 
     private bool MoveNext (Command command)
     {
@@ -375,6 +392,12 @@ public abstract class SelectorBase : View, IOrientation, IValue<int?>
         // Note: UsedHotKeys cleanup is handled by the base class's RaiseSubViewRemoved
         foreach (View sv in RemoveAll ())
         {
+            // Clean up checkbox value mapping (replaced use of Data property)
+            if (sv is CheckBox cb)
+            {
+                _checkBoxValues.Remove (cb);
+            }
+
             sv.Dispose ();
         }
 
@@ -425,12 +448,30 @@ public abstract class SelectorBase : View, IOrientation, IValue<int?>
             CanFocus = true,
             Title = label,
             Id = label,
-            Data = value,
             MouseHighlightStates = DefaultMouseHighlightStates,
             TabStop = TabBehavior
         };
 
+        // Store value in dictionary (replaced use of Data property)
+        _checkBoxValues [checkbox] = value;
+
         return checkbox;
+    }
+
+    /// <summary>
+    ///     Gets the int value associated with a checkbox. For testing and advanced scenarios.
+    /// </summary>
+    /// <param name="checkbox">The checkbox to get the value for</param>
+    /// <returns>The integer value associated with the checkbox</returns>
+    /// <exception cref="InvalidOperationException">If the checkbox is not found or not part of this selector</exception>
+    public int GetCheckBoxValue (CheckBox checkbox)
+    {
+        if (_checkBoxValues.TryGetValue (checkbox, out int value))
+        {
+            return value;
+        }
+
+        throw new InvalidOperationException ("CheckBox value not found");
     }
 
     private int _horizontalSpace = 2;
@@ -477,15 +518,28 @@ public abstract class SelectorBase : View, IOrientation, IValue<int?>
             {
                 SubViews.ElementAt (i).X = 0;
                 SubViews.ElementAt (i).Y = Pos.Align (Alignment.Start, AlignmentModes.StartToEnd);
-                SubViews.ElementAt (i).Margin!.Thickness = new Thickness (0);
+                SubViews.ElementAt (i).Margin.Thickness = new Thickness (0);
                 SubViews.ElementAt (i).Width = Dim.Func (_ => maxNaturalCheckBoxWidth);
             }
             else
             {
                 SubViews.ElementAt (i).X = Pos.Align (Alignment.Start, AlignmentModes.StartToEnd);
                 SubViews.ElementAt (i).Y = 0;
-                SubViews.ElementAt (i).Margin!.Thickness = new Thickness (0, 0, i < SubViews.Count - 1 ? _horizontalSpace : 0, 0);
+                SubViews.ElementAt (i).Margin.Thickness = new Thickness (0, 0, i < SubViews.Count - 1 ? _horizontalSpace : 0, 0);
                 SubViews.ElementAt (i).Width = Dim.Auto ();
+            }
+        }
+
+        // Pre-calculate each subview's Frame.Width for horizontal layout so that
+        // Dim.Auto (DimAutoStyle.Content) on the selector can correctly compute its
+        // total width via PosAlign.CalculateMinDimension, which reads Frame.Width.
+        // Without this, newly-created subviews have Frame.Width == 0 on the first
+        // layout pass, causing the selector to be sized too narrow.
+        if (Orientation == Orientation.Horizontal && SubViews.Count > 0)
+        {
+            foreach (View sv in SubViews)
+            {
+                sv.SetRelativeLayout (GetContainerSize ());
             }
         }
     }

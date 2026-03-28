@@ -1,23 +1,20 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace Terminal.Gui.Tracing;
 
 /// <summary>
 ///     Provides unified tracing for debugging and testing. Supports independent enable/disable
-///     for Command, Mouse, and Keyboard tracing. Traces are only captured in DEBUG builds.
+///     for different trace categories. Traces are only captured in DEBUG builds.
 /// </summary>
 /// <remarks>
 ///     <para>
-///         By default, all tracing is disabled. Enable individual categories via properties:
+///         By default, all tracing is disabled. Enable categories via <see cref="EnabledCategories"/>:
 ///     </para>
-///     <list type="bullet">
-///         <item><see cref="LifecycleEnabled"/> - command routing traces</item>
-///         <item><see cref="CommandEnabled"/> - command routing traces</item>
-///         <item><see cref="MouseEnabled"/> - mouse event traces</item>
-///         <item><see cref="KeyboardEnabled"/> - keyboard event traces</item>
-///         <item><see cref="NavigationEnabled"/> - keyboard event traces</item>
-///     </list>
+///     <code>
+///         Trace.EnabledCategories = TraceCategory.Command | TraceCategory.Mouse;
+///     </code>
 ///     <para>
 ///         All trace methods are marked with <c>[Conditional("DEBUG")]</c>,
 ///         so they have zero overhead in Release builds.
@@ -30,82 +27,22 @@ namespace Terminal.Gui.Tracing;
 public static class Trace
 {
     private static readonly AsyncLocal<ITraceBackend?> _asyncLocalBackend = new ();
+    private static readonly AsyncLocal<TraceCategory> _asyncLocalEnabledCategories = new ();
     private static readonly NullBackend _nullBackend = new ();
     private static readonly LoggingBackend _loggingBackend = new ();
 
     /// <summary>
-    ///     Gets or sets whether Application and Driver lifecycle tracing is enabled.
-    ///     When enabled, automatically uses <see cref="LoggingBackend"/> if no backend is set.
+    ///     Gets or sets the enabled trace categories for the current async context.
+    ///     This property is thread-safe and isolated per async flow.
     /// </summary>
     [ConfigurationProperty (Scope = typeof (SettingsScope))]
-    public static bool LifecycleEnabled
+    [JsonConverter (typeof (TraceCategoryJsonConverter))]
+    public static TraceCategory EnabledCategories
     {
-        get;
+        get => _asyncLocalEnabledCategories.Value;
         set
         {
-            field = value;
-            EnsureBackendIfEnabled ();
-        }
-    }
-
-    /// <summary>
-    ///     Gets or sets whether command tracing is enabled.
-    ///     When enabled, automatically uses <see cref="LoggingBackend"/> if no backend is set.
-    /// </summary>
-    [ConfigurationProperty (Scope = typeof (SettingsScope))]
-    public static bool CommandEnabled
-    {
-        get;
-        set
-        {
-            field = value;
-            EnsureBackendIfEnabled ();
-        }
-    }
-
-    /// <summary>
-    ///     Gets or sets whether mouse tracing is enabled.
-    ///     When enabled, automatically uses <see cref="LoggingBackend"/> if no backend is set.
-    /// </summary>
-    [ConfigurationProperty (Scope = typeof (SettingsScope))]
-    public static bool MouseEnabled
-    {
-        get;
-        set
-        {
-            field = value;
-            EnsureBackendIfEnabled ();
-        }
-    }
-
-    /// <summary>
-    ///     Gets or sets whether keyboard tracing is enabled.
-    ///     When enabled, automatically uses <see cref="LoggingBackend"/> if no backend is set.
-    /// </summary>
-    [ConfigurationProperty (Scope = typeof (SettingsScope))]
-    public static bool KeyboardEnabled
-    {
-        get;
-        set
-        {
-            field = value;
-            EnsureBackendIfEnabled ();
-        }
-    }
-
-    /// <summary>
-    /// Gets or sets whether Navigation (Focus and TabBehavior) tracing is enabled.
-    /// When enabled, automatically uses
-    /// <see cref="LoggingBackend"/>
-    /// if no backend is set.
-    /// </summary>
-    [ConfigurationProperty (Scope = typeof (SettingsScope))]
-    public static bool NavigationEnabled
-    {
-        get;
-        set
-        {
-            field = value;
+            _asyncLocalEnabledCategories.Value = value;
             EnsureBackendIfEnabled ();
         }
     }
@@ -120,16 +57,47 @@ public static class Trace
     /// </remarks>
     public static ITraceBackend Backend { get => _asyncLocalBackend.Value ?? _nullBackend; set => _asyncLocalBackend.Value = value; }
 
+    /// <summary>
+    ///     Gets the async-local backend value (for TraceScope internal use).
+    /// </summary>
+    internal static ITraceBackend? GetAsyncLocalBackend () => _asyncLocalBackend.Value;
+
+    /// <summary>
+    ///     Sets the async-local backend value (for TraceScope internal use).
+    /// </summary>
+    internal static void SetAsyncLocalBackend (ITraceBackend? backend) => _asyncLocalBackend.Value = backend;
+
     private static void EnsureBackendIfEnabled ()
     {
         // Auto-switch to LoggingBackend if:
         // 1. Any category is enabled, AND
         // 2. No backend has been set (null) OR the backend is NullBackend
-        if ((LifecycleEnabled || CommandEnabled || MouseEnabled || KeyboardEnabled || NavigationEnabled) && (_asyncLocalBackend.Value is null || _asyncLocalBackend.Value is NullBackend))
+        if (EnabledCategories != TraceCategory.None && (_asyncLocalBackend.Value is null || _asyncLocalBackend.Value is NullBackend))
         {
             _asyncLocalBackend.Value = _loggingBackend;
         }
     }
+
+    /// <summary>
+    ///     Pushes a trace scope that enables the specified categories and optionally sets a backend.
+    ///     Returns an <see cref="IDisposable"/> that restores the previous state when disposed.
+    ///     This is thread-safe and works correctly with parallel tests.
+    /// </summary>
+    /// <param name="categories">The trace categories to enable.</param>
+    /// <param name="backend">Optional backend to use. If null, uses default backend selection.</param>
+    /// <returns>An <see cref="IDisposable"/> scope that restores previous tracing state.</returns>
+    /// <example>
+    ///     <code>
+    ///     using (Trace.PushScope (TraceCategory.Command | TraceCategory.Mouse))
+    ///     {
+    ///         // Command and Mouse tracing enabled in this scope
+    ///         CheckBox checkbox = new () { Id = "test" };
+    ///         checkbox.InvokeCommand (Command.Activate);
+    ///     }
+    ///     // Previous tracing state restored
+    ///     </code>
+    /// </example>
+    public static IDisposable PushScope (TraceCategory categories, ITraceBackend? backend = null) => new TraceScope (categories, backend);
 
     #region Lifecycle Tracing
 
@@ -143,7 +111,7 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Lifecycle (string? id, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!LifecycleEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Lifecycle))
         {
             return;
         }
@@ -167,7 +135,7 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Command (View view, Command command, CommandRouting routing, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!CommandEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Command))
         {
             return;
         }
@@ -186,18 +154,12 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Command (View view, ICommandContext? ctx, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!CommandEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Command))
         {
             return;
         }
 
-        Backend.Log (new TraceEntry (TraceCategory.Command,
-                                     view.ToIdentifyingString (),
-                                     phase,
-                                     method,
-                                     message,
-                                     DateTime.UtcNow,
-                                     (ctx?.Command ?? Input.Command.NotBound, ctx?.Routing ?? CommandRouting.Direct)));
+        Backend.Log (new TraceEntry (TraceCategory.Command, view.ToIdentifyingString (), phase, method, message, DateTime.UtcNow, ctx)); //(ctx?.Command ?? Input.Command.NotBound, ctx?.Routing ?? CommandRouting.Direct)));
     }
 
     /// <summary>
@@ -210,7 +172,7 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Command (View view, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!CommandEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Command))
         {
             return;
         }
@@ -234,7 +196,7 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Mouse (string source, MouseFlags flags, Point position, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!MouseEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Mouse))
         {
             return;
         }
@@ -254,7 +216,7 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Mouse (View view, MouseFlags flags, Point position, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!MouseEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Mouse))
         {
             return;
         }
@@ -273,7 +235,7 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Mouse (View view, Mouse mouse, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!MouseEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Mouse))
         {
             return;
         }
@@ -292,12 +254,56 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Mouse (string source, Mouse mouse, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!MouseEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Mouse))
         {
             return;
         }
 
         Backend.Log (new TraceEntry (TraceCategory.Mouse, source, phase, method, message, DateTime.UtcNow, mouse));
+    }
+
+    #endregion
+
+    #region Configuration Tracing
+
+    /// <summary>
+    ///     Traces a configuration management operation.
+    /// </summary>
+    /// <param name="id">An identifying string for the trace (e.g., property name, source path).</param>
+    /// <param name="phase">The phase of the operation (e.g., "Load", "Apply", "Discover").</param>
+    /// <param name="message">Optional additional context.</param>
+    /// <param name="method">Automatically captured caller method name.</param>
+    [Conditional ("DEBUG")]
+    public static void Configuration (string? id, string phase, string? message = null, [CallerMemberName] string method = "")
+    {
+        if (!EnabledCategories.HasFlag (TraceCategory.Configuration))
+        {
+            return;
+        }
+
+        Backend.Log (new TraceEntry (TraceCategory.Configuration, id ?? string.Empty, phase, method, message, DateTime.UtcNow, null));
+    }
+
+    #endregion
+
+    #region Draw Tracing
+
+    /// <summary>
+    ///     Traces a draw operation.
+    /// </summary>
+    /// <param name="id">An identifying string for the trace.</param>
+    /// <param name="phase">The phase of the draw operation (e.g., "Start", "End", "Adornments", "SubViews", "Text", "Content").</param>
+    /// <param name="message">Optional additional context.</param>
+    /// <param name="method">Automatically captured caller method name.</param>
+    [Conditional ("DEBUG")]
+    public static void Draw (string? id, string phase, string? message = null, [CallerMemberName] string method = "")
+    {
+        if (!EnabledCategories.HasFlag (TraceCategory.Draw))
+        {
+            return;
+        }
+
+        Backend.Log (new TraceEntry (TraceCategory.Draw, id ?? string.Empty, phase, method, message, DateTime.UtcNow, null));
     }
 
     #endregion
@@ -315,7 +321,7 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Keyboard (string source, Key key, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!KeyboardEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Keyboard))
         {
             return;
         }
@@ -334,12 +340,30 @@ public static class Trace
     [Conditional ("DEBUG")]
     public static void Keyboard (View view, Key key, string phase, string? message = null, [CallerMemberName] string method = "")
     {
-        if (!KeyboardEnabled)
+        if (!EnabledCategories.HasFlag (TraceCategory.Keyboard))
         {
             return;
         }
 
         Backend.Log (new TraceEntry (TraceCategory.Keyboard, view.ToIdentifyingString (), phase, method, message, DateTime.UtcNow, key));
+    }
+
+    /// <summary>
+    ///     Traces a keyboard binding event.
+    /// </summary>
+    /// <param name="binding">The keyboard binding being processed.</param>
+    /// <param name="phase">The phase of processing.</param>
+    /// <param name="message">Optional additional context.</param>
+    /// <param name="method">Automatically captured caller method name.</param>
+    [Conditional ("DEBUG")]
+    public static void Keyboard (PlatformKeyBinding binding, string phase, string? message = null, [CallerMemberName] string method = "")
+    {
+        if (!EnabledCategories.HasFlag (TraceCategory.Keyboard))
+        {
+            return;
+        }
+
+        Backend.Log (new TraceEntry (TraceCategory.Keyboard, string.Join (", ", binding.GetCurrentPlatformKeys ()), phase, method, message, DateTime.UtcNow, binding));
     }
 
     #endregion

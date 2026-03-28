@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System.Collections.ObjectModel;
 using System.Text;
 
@@ -144,6 +144,11 @@ public class EventLog : ListView
             sb.Append ($", Source={context.Source.ToIdentifyingString ()}");
         }
 
+        if (context.Value is { })
+        {
+            sb.Append ($", Value={context.Value}");
+        }
+
         return sb.ToString ();
     }
 
@@ -157,7 +162,7 @@ public class EventLog : ListView
 
     private void EventLog_Initialized (object? _, EventArgs e)
     {
-        Border?.Add (ExpandButton!);
+        Border.GetOrCreateView ().Add (ExpandButton!);
         Source = new ListWrapper<string> (_eventSource);
     }
 }

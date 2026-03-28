@@ -1,18 +1,15 @@
-#nullable enable
 using UnitTests;
-using Xunit.Abstractions;
 
 namespace ViewBaseTests.Drawing;
 
-public class ViewDrawingFlowTests () : TestDriverBase
+public class ViewDrawingFlowTests : TestDriverBase
 {
-    
     #region Draw Visibility Tests
 
     [Fact]
     public void Draw_NotVisible_DoesNotDraw ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
 
         var view = new View
         {
@@ -36,7 +33,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
     [Fact]
     public void Draw_SuperViewNotVisible_DoesNotDraw ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
 
         var parent = new View
         {
@@ -56,16 +53,16 @@ public class ViewDrawingFlowTests () : TestDriverBase
         child.Draw ();
 
         // Child should not have been drawn
-        Assert.True (child.NeedsDraw);  // Still needs draw
+        Assert.True (child.NeedsDraw); // Still needs draw
     }
 
     [Fact]
     public void Draw_Enabled_False_UsesDisabledAttribute ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
-        bool drawingTextCalled = false;
+        var drawingTextCalled = false;
         Attribute? usedAttribute = null;
 
         var view = new TestView
@@ -82,15 +79,16 @@ public class ViewDrawingFlowTests () : TestDriverBase
         view.LayoutSubViews ();
 
         view.DrawingText += (s, e) =>
-        {
-            drawingTextCalled = true;
-            usedAttribute = driver.CurrentAttribute;
-        };
+                            {
+                                drawingTextCalled = true;
+                                usedAttribute = driver.CurrentAttribute;
+                            };
 
         view.Draw ();
 
         Assert.True (drawingTextCalled);
         Assert.NotNull (usedAttribute);
+
         // The disabled attribute should have been used
         Assert.Equal (view.GetAttributeForRole (VisualRole.Disabled), usedAttribute);
     }
@@ -102,10 +100,10 @@ public class ViewDrawingFlowTests () : TestDriverBase
     [Fact]
     public void Draw_CallsMethodsInCorrectOrder ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
-        var callOrder = new List<string> ();
+        List<string> callOrder = new ();
 
         var view = new TestView
         {
@@ -115,6 +113,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
             Height = 20,
             Driver = driver
         };
+        view.Add (new View ());
         view.BeginInit ();
         view.EndInit ();
         view.LayoutSubViews ();
@@ -129,19 +128,20 @@ public class ViewDrawingFlowTests () : TestDriverBase
 
         view.Draw ();
 
-        Assert.Equal (
-                     new [] { "DrawingAdornments", "ClearingViewport", "DrawingSubViews", "DrawingText", "DrawingContent", "RenderingLineCanvas", "DrawComplete" },
-                     callOrder
-                    );
+        Assert.Equal (new []
+                      {
+                          "DrawingAdornments", "ClearingViewport", "DrawingSubViews", "DrawingText", "DrawingContent", "RenderingLineCanvas", "DrawComplete"
+                      },
+                      callOrder);
     }
 
     [Fact]
     public void Draw_WithSubViews_DrawsInReverseOrder ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
-        var drawOrder = new List<string> ();
+        List<string> drawOrder = new ();
 
         var parent = new View
         {
@@ -152,9 +152,32 @@ public class ViewDrawingFlowTests () : TestDriverBase
             Driver = driver
         };
 
-        var child1 = new TestView { X = 0, Y = 0, Width = 10, Height = 10, Id = "Child1" };
-        var child2 = new TestView { X = 0, Y = 10, Width = 10, Height = 10, Id = "Child2" };
-        var child3 = new TestView { X = 0, Y = 20, Width = 10, Height = 10, Id = "Child3" };
+        var child1 = new TestView
+        {
+            X = 0,
+            Y = 0,
+            Width = 10,
+            Height = 10,
+            Id = "Child1"
+        };
+
+        var child2 = new TestView
+        {
+            X = 0,
+            Y = 10,
+            Width = 10,
+            Height = 10,
+            Id = "Child2"
+        };
+
+        var child3 = new TestView
+        {
+            X = 0,
+            Y = 20,
+            Width = 10,
+            Height = 10,
+            Id = "Child3"
+        };
 
         parent.Add (child1);
         parent.Add (child2);
@@ -181,7 +204,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
     [Fact]
     public void Draw_WithContext_PassesContext ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
         DrawContext? receivedContext = null;
@@ -199,10 +222,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
         view.LayoutSubViews ();
 
         view.DrawingContentCallback = () => { };
-        view.DrawingContent += (s, e) =>
-        {
-            receivedContext = e.DrawContext;
-        };
+        view.DrawingContent += (s, e) => { receivedContext = e.DrawContext; };
 
         var context = new DrawContext ();
         view.Draw (context);
@@ -214,7 +234,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
     [Fact]
     public void Draw_WithoutContext_CreatesContext ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
         DrawContext? receivedContext = null;
@@ -232,10 +252,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
         view.LayoutSubViews ();
 
         view.DrawingContentCallback = () => { };
-        view.DrawingContent += (s, e) =>
-        {
-            receivedContext = e.DrawContext;
-        };
+        view.DrawingContent += (s, e) => { receivedContext = e.DrawContext; };
 
         view.Draw ();
 
@@ -249,7 +266,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
     [Fact]
     public void ClearingViewport_CanCancel ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
         var view = new View
@@ -264,7 +281,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
         view.EndInit ();
         view.LayoutSubViews ();
 
-        bool clearedCalled = false;
+        var clearedCalled = false;
 
         view.ClearingViewport += (s, e) => e.Cancel = true;
         view.ClearedViewport += (s, e) => clearedCalled = true;
@@ -277,7 +294,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
     [Fact]
     public void DrawingText_CanCancel ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
         var view = new View
@@ -293,7 +310,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
         view.EndInit ();
         view.LayoutSubViews ();
 
-        bool drewTextCalled = false;
+        var drewTextCalled = false;
 
         view.DrawingText += (s, e) => e.Cancel = true;
         view.DrewText += (s, e) => drewTextCalled = true;
@@ -302,11 +319,11 @@ public class ViewDrawingFlowTests () : TestDriverBase
 
         Assert.False (drewTextCalled);
     }
-    
+
     [Fact]
     public void DrawingSubViews_CanCancel ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
         var parent = new TestView
@@ -323,7 +340,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
         parent.EndInit ();
         parent.LayoutSubViews ();
 
-        bool childDrawn = false;
+        var childDrawn = false;
         child.DrawingContentCallback = () => childDrawn = true;
 
         parent.DrawingSubViews += (s, e) => e.Cancel = true;
@@ -336,10 +353,10 @@ public class ViewDrawingFlowTests () : TestDriverBase
     [Fact]
     public void DrawComplete_AlwaysCalled ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
-        bool drawCompleteCalled = false;
+        var drawCompleteCalled = false;
 
         var view = new View
         {
@@ -367,10 +384,10 @@ public class ViewDrawingFlowTests () : TestDriverBase
     [Fact]
     public void Draw_TransparentView_DoesNotClearViewport ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         driver.Clip = new Region (driver.Screen);
 
-        bool clearedViewport = false;
+        var clearedViewport = false;
 
         var view = new View
         {
@@ -395,7 +412,7 @@ public class ViewDrawingFlowTests () : TestDriverBase
     [Fact]
     public void Draw_TransparentView_ExcludesDrawnRegionFromClip ()
     {
-        IDriver driver = CreateTestDriver (80, 25);
+        IDriver driver = CreateTestDriver ();
         var initialClip = new Region (driver.Screen);
         driver.Clip = initialClip;
 
@@ -439,36 +456,42 @@ public class ViewDrawingFlowTests () : TestDriverBase
         protected override bool OnDrawingAdornments ()
         {
             DrawingAdornmentsCallback?.Invoke ();
+
             return base.OnDrawingAdornments ();
         }
 
         protected override bool OnClearingViewport ()
         {
             ClearingViewportCallback?.Invoke ();
+
             return base.OnClearingViewport ();
         }
 
         protected override bool OnDrawingSubViews (DrawContext? context)
         {
             DrawingSubViewsCallback?.Invoke ();
+
             return base.OnDrawingSubViews (context);
         }
 
         protected override bool OnDrawingText (DrawContext? context)
         {
             DrawingTextCallback?.Invoke ();
+
             return base.OnDrawingText (context);
         }
 
         protected override bool OnDrawingContent (DrawContext? context)
         {
             DrawingContentCallback?.Invoke ();
+
             return base.OnDrawingContent (context);
         }
 
         protected override bool OnRenderingLineCanvas ()
         {
             RenderingLineCanvasCallback?.Invoke ();
+
             return base.OnRenderingLineCanvas ();
         }
 

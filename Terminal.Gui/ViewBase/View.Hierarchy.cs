@@ -64,22 +64,22 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
         // Add direct SubViews
         result.AddRange (InternalSubViews);
 
-        if (includeMargin && Margin is { SubViews: { Count: > 0 } } && Margin.Thickness != Thickness.Empty)
+        if (includeMargin && Margin.View is { SubViews.Count: > 0 } && Margin.Thickness != Thickness.Empty)
         {
             // Add Margin SubViews
-            result.AddRange (Margin.SubViews);
+            result.AddRange (Margin.View.SubViews);
         }
 
-        if (includeBorder && Border is { SubViews: { Count: > 0 } } && Border.Thickness != Thickness.Empty)
+        if (includeBorder && Border.View is { SubViews.Count: > 0 } && Border.Thickness != Thickness.Empty)
         {
             // Add Border SubViews
-            result.AddRange (Border.SubViews);
+            result.AddRange (Border.View.SubViews);
         }
 
-        if (includePadding && Padding is { SubViews: { Count: > 0 } } && Padding.Thickness != Thickness.Empty)
+        if (includePadding && Padding.View is { SubViews.Count: > 0 } && Padding.Thickness != Thickness.Empty)
         {
             // Add Padding SubViews
-            result.AddRange (Padding.SubViews);
+            result.AddRange (Padding.View.SubViews);
         }
 
         return result.AsReadOnly ();
@@ -95,7 +95,7 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
     /// <seealso cref="SuperViewChanging"/>
     /// <seealso cref="OnSuperViewChanged"/>
     /// <seealso cref="SuperViewChanged"/>
-    public View? SuperView => _superView!;
+    public View? SuperView => _superView;
 
     /// <summary>
     ///     INTERNAL: Sets the SuperView of this View.
@@ -152,7 +152,9 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
 
     #region AddRemove
 
-    /// <summary>Adds a SubView (child) to this view.</summary>
+    /// <summary>
+    ///     Adds a SubView (child) to this view at the specified index in the <see cref="SubViews"/> list.
+    /// </summary>
     /// <remarks>
     ///     <para>
     ///         The Views that have been added to this view can be retrieved via the <see cref="SubViews"/> property.
@@ -171,6 +173,7 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
     ///         The <see cref="OnSuperViewChanged"/>/<see cref="SuperViewChanged"/> event will be raised on the added View.
     ///     </para>
     /// </remarks>
+    /// <param name="index">The index at which to insert the view.</param>
     /// <param name="view">The view to add.</param>
     /// <returns>The view that was added.</returns>
     /// <seealso cref="Remove(View)"/>
@@ -181,12 +184,15 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
     /// <seealso cref="SuperViewChanging"/>
     /// <seealso cref="OnSuperViewChanged"/>
     /// <seealso cref="SuperViewChanged"/>
-    public View? Add (View? view)
+    public View? AddAt (int index, View? view)
     {
         if (view is null)
         {
             return null;
         }
+
+        ArgumentOutOfRangeException.ThrowIfNegative (index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan (index, InternalSubViews.Count);
 
         //Debug.Assert (view.SuperView is null, $"{view} already has a SuperView: {view.SuperView}.");
         if (view.SuperView is { })
@@ -201,7 +207,7 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
         }
 
         // TODO: Add AddingSubView event
-        if (this is Margin)
+        if (this is MarginView)
         {
             if (view is not ShadowView)
             {
@@ -210,12 +216,12 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
         }
 
         // TODO: Make this thread safe
-        InternalSubViews.Add (view);
+        InternalSubViews.Insert (index, view);
 
         // Try to set the SuperView - this may be cancelled
         if (!view.SetSuperView (this))
         {
-            InternalSubViews.Remove (view);
+            InternalSubViews.RemoveAt (index);
 
             // The change was cancelled
             return null;
@@ -253,6 +259,37 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
 
         return view;
     }
+
+    /// <summary>Adds a SubView (child) to this view as the last view in the <see cref="SubViews"/> list.</summary>
+    /// <remarks>
+    ///     <para>
+    ///         The Views that have been added to this view can be retrieved via the <see cref="SubViews"/> property.
+    ///     </para>
+    ///     <para>
+    ///         To check if a View has been added to this View, compare it's <see cref="SuperView"/> property to this View.
+    ///     </para>
+    ///     <para>
+    ///         SubViews will be disposed when this View is disposed. In other-words, calling this method causes
+    ///         the lifecycle of the subviews to be transferred to this View.
+    ///     </para>
+    ///     <para>
+    ///         Calls/Raises the <see cref="OnSubViewAdded"/>/<see cref="SubViewAdded"/> event.
+    ///     </para>
+    ///     <para>
+    ///         The <see cref="OnSuperViewChanged"/>/<see cref="SuperViewChanged"/> event will be raised on the added View.
+    ///     </para>
+    /// </remarks>
+    /// <param name="view">The view to add.</param>
+    /// <returns>The view that was added.</returns>
+    /// <seealso cref="Remove(View)"/>
+    /// <seealso cref="RemoveAll"/>
+    /// <seealso cref="OnSubViewAdded"/>
+    /// <seealso cref="SubViewAdded"/>
+    /// <seealso cref="OnSuperViewChanging"/>
+    /// <seealso cref="SuperViewChanging"/>
+    /// <seealso cref="OnSuperViewChanged"/>
+    /// <seealso cref="SuperViewChanged"/>
+    public View? Add (View? view) => AddAt (InternalSubViews.Count, view);
 
     /// <summary>Adds the specified SubView (children) to the view.</summary>
     /// <param name="views">Array of one or more views (can be optional parameter).</param>
@@ -347,7 +384,7 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
 
         if (view.SuperView is null)
         {
-            Logging.Warning ($"{view.ToIdentifyingString()} cannot be Removed. SuperView is null.");
+            Logging.Warning ($"{view.ToIdentifyingString ()} cannot be Removed. SuperView is null.");
         }
         else if (view.SuperView != this)
         {
@@ -391,11 +428,11 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
         InternalSubViews.Remove (view);
 
         // Clean up focus stuff
-        _previouslyFocused = null;
+        PreviouslyFocused = null;
 
-        if (previousSuperView is { } && previousSuperView._previouslyFocused == this)
+        if (previousSuperView is { } && previousSuperView.PreviouslyFocused == this)
         {
-            previousSuperView._previouslyFocused = null;
+            previousSuperView.PreviouslyFocused = null;
         }
 
         SetNeedsLayout ();
@@ -411,9 +448,9 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
 
         view.CanFocus = couldFocus; // Restore to previous value
 
-        if (_previouslyFocused == view)
+        if (PreviouslyFocused == view)
         {
-            _previouslyFocused = null;
+            PreviouslyFocused = null;
         }
 
         RaiseSubViewRemoved (view);
@@ -537,7 +574,7 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
     {
         View? top = to; // ?? App?.TopRunnableView;
 
-        for (View? v = from?.SuperView ?? this?.SuperView; v != null; v = v.SuperView)
+        for (View? v = from?.SuperView ?? SuperView; v != null; v = v.SuperView)
         {
             top = v;
 
@@ -555,7 +592,7 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
     /// </summary>
     /// <param name="start">The View at the start of the hierarchy.</param>
     /// <param name="view">The View to test.</param>
-    /// <param name="includeAdornments">Will include all <see cref="Adornment"/>s in addition to Subviews if true.</param>
+    /// <param name="includeAdornments">Will include all <see cref="IAdornment"/>s in addition to Subviews if true.</param>
     /// <returns></returns>
     public static bool IsInHierarchy (View? start, View? view, bool includeAdornments = false)
     {
@@ -584,28 +621,30 @@ public partial class View // SuperView/SubView hierarchy management (SuperView, 
             }
         }
 
-        if (includeAdornments)
+        if (!includeAdornments)
         {
-            bool found = IsInHierarchy (start.Padding, view, includeAdornments);
+            return false;
+        }
 
-            if (found)
-            {
-                return found;
-            }
+        bool inHierarchy = IsInHierarchy (start.Padding.View, view, includeAdornments);
 
-            found = IsInHierarchy (start.Border, view, includeAdornments);
+        if (inHierarchy)
+        {
+            return inHierarchy;
+        }
 
-            if (found)
-            {
-                return found;
-            }
+        inHierarchy = IsInHierarchy (start.Border.View, view, includeAdornments);
 
-            found = IsInHierarchy (start.Margin, view, includeAdornments);
+        if (inHierarchy)
+        {
+            return inHierarchy;
+        }
 
-            if (found)
-            {
-                return found;
-            }
+        inHierarchy = IsInHierarchy (start.Margin.View, view, includeAdornments);
+
+        if (inHierarchy)
+        {
+            return inHierarchy;
         }
 
         return false;

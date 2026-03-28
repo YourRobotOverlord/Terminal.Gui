@@ -28,7 +28,7 @@ The menu system in Terminal.Gui consists of the following key components:
 | <xref:Terminal.Gui.Views.Menu> | A vertically-oriented <xref:Terminal.Gui.Views.Bar> that contains <xref:Terminal.Gui.Views.MenuItem> items |
 | <xref:Terminal.Gui.Views.MenuBarItem> | A <xref:Terminal.Gui.Views.MenuItem> that holds a <xref:Terminal.Gui.Views.PopoverMenu> instead of a `SubMenu` |
 | <xref:Terminal.Gui.Views.MenuBar> | A horizontal <xref:Terminal.Gui.Views.Menu> that contains <xref:Terminal.Gui.Views.MenuBarItem> items |
-| <xref:Terminal.Gui.Views.PopoverMenu> | A `PopoverBaseImpl`-derived view that hosts cascading menus |
+| <xref:Terminal.Gui.Views.PopoverMenu> | A `Popover<Menu, MenuItem>`-derived view that hosts cascading menus |
 
 ---
 
@@ -46,8 +46,9 @@ View
 │   └── Menu                    // Vertical Bar for MenuItems
 │       └── MenuBar             // Horizontal Menu for MenuBarItems
 │
-└── PopoverBaseImpl             // Base for popover views
-    └── PopoverMenu             // Cascading menu popover
+└── PopoverImpl             // Base for popover views
+    └── Popover<TView, TResult> // Generic popover with content view + result extraction
+        └── PopoverMenu         // Cascading menu popover (Popover<Menu, MenuItem>)
 ```
 
 ### Inheritance Details
@@ -180,16 +181,16 @@ MenuBarItem fileMenuBarItem = new ("_File", [
     new MenuItem ("_New", Key.N.WithCtrl, () => NewFile ()),
     new MenuItem ("_Open...", Key.O.WithCtrl, () => OpenFile ()),
     new Line (),
-    new MenuItem ("_Quit", Application.QuitKey, () => Application.RequestStop ())
+    new MenuItem ("_Quit", Application.GetDefaultKey (Command.Quit), () => Application.RequestStop ())
 ]);
 ```
 
 **Important:** <xref:Terminal.Gui.Views.MenuBarItem> uses <xref:Terminal.Gui.Views.PopoverMenu> instead of `SubMenu`. Attempting to set `SubMenu` will throw `InvalidOperationException`.
 
 Key features:
-- `PopoverMenu` property holds the dropdown menu
-- `PopoverMenuOpen` tracks whether the popover is visible (CWP property with `PopoverMenuOpenChanging`/`PopoverMenuOpenChanged` events)
-- When `PopoverMenu` is set, a `CommandBridge` connects the PopoverMenu back to this MenuBarItem, bridging <xref:Terminal.Gui.Input.Command.Activate> commands across the non-containment boundary
+- `PopoverMenu` property holds the dropdown menu and sets `Target`/`Anchor` on the popover for command bridging and positioning
+- `PopoverMenuOpen` delegates to `PopoverMenu.IsOpen` and raises `PopoverMenuOpenChanged` (relayed from `PopoverMenu.IsOpenChanged`)
+- When `PopoverMenu` is set, the base `Popover<TView, TResult>.Target` property creates a `CommandBridge` connecting the PopoverMenu back to this MenuBarItem, bridging <xref:Terminal.Gui.Input.Command.Activate> commands across the non-containment boundary
 - Overrides `OnActivating` to toggle `PopoverMenuOpen`, with a guard that ignores `Bridged` commands (which are notifications from PopoverMenu internals, not toggle requests)
 - Has a custom <xref:Terminal.Gui.ViewBase.View.HotKey> handler that skips [SetFocus()](xref:Terminal.Gui.ViewBase.View.SetFocus*) before invoking <xref:Terminal.Gui.Input.Command.Activate>, preventing premature popover opening during MenuBarItem switching
 
@@ -203,7 +204,7 @@ MenuBar menuBar = new ([
         new MenuItem ("_New", Key.N.WithCtrl, () => NewFile ()),
         new MenuItem ("_Open...", Key.O.WithCtrl, () => OpenFile ()),
         new Line (),
-        new MenuItem ("E_xit", Application.QuitKey, () => Application.RequestStop ())
+        new MenuItem ("E_xit", Application.GetDefaultKey (Command.Quit), () => Application.RequestStop ())
     ]),
     new MenuBarItem ("_Edit", [
         new MenuItem ("_Cut", Key.X.WithCtrl, () => Cut ()),
@@ -220,7 +221,7 @@ window.Add (menuBar);
 ```
 
 Key features:
-- `Key` property defines the activation key (default: `F9`)
+- `Key` property defines the activation key (default: `F10`)
 - `Active` property controls whether the MenuBar is active — when `Active` changes, it drives <xref:Terminal.Gui.ViewBase.View.CanFocus> and hides any open PopoverMenus on deactivation
 - `IsOpen()` returns whether any popover menu is visible
 - `DefaultBorderStyle` configurable via themes
@@ -231,7 +232,7 @@ Key features:
 
 ### PopoverMenu
 
-<xref:Terminal.Gui.Views.PopoverMenu> is a popover that hosts cascading menus:
+<xref:Terminal.Gui.Views.PopoverMenu> extends `Popover<Menu, MenuItem>` and hosts cascading menus:
 
 ```csharp
 // Create a context menu
@@ -254,11 +255,13 @@ contextMenu.MakeVisible (new Point (10, 5));
 ```
 
 Key features:
-- `Root` property holds the top-level <xref:Terminal.Gui.Views.Menu>
+- Inherits from `Popover<Menu, MenuItem>`, which provides `ContentView`, `MakeVisible`, `SetPosition`, `Target`, `Anchor`, `Result`, and `ResultExtractor`
+- `Root` property aliases `ContentView` and holds the top-level <xref:Terminal.Gui.Views.Menu>
 - `Key` property for activation (default: `Shift+F10`)
 - <xref:Terminal.Gui.Input.MouseFlags> property defines mouse button to show menu (default: right-click)
 - **Must be registered** with `Application.Popover` before calling `MakeVisible`
-- Auto-positions to ensure visibility on screen
+- `Target` (inherited from `PopoverImpl`) establishes a `CommandBridge` so that commands from the menu hierarchy bridge to the target view
+- Auto-positions to ensure visibility on screen via overridden `SetPosition` and `GetAdjustedPosition`
 - SubMenu show/hide is handled by `Menu.OnSelectedMenuItemChanged()`; PopoverMenu's subscriber only adjusts positioning for screen boundaries via `GetMostVisibleLocationForSubMenu()`
 - Registers custom command handlers for `Command.Right` (enter submenu), `Command.Left` (leave submenu), and `Command.Quit` (close menu)
 
@@ -310,8 +313,9 @@ Key features:
    - A `CommandBridge` connects PopoverMenu back to MenuBarItem, bridging <xref:Terminal.Gui.Input.Command.Activate> commands
    - `PopoverMenuOpenChanged` event fires when visibility changes
 
-3. **PopoverMenu contains Root Menu:**
-   - `PopoverMenu.Root` is the top-level <xref:Terminal.Gui.Views.Menu>
+3. **PopoverMenu contains Root Menu (via ContentView):**
+   - `PopoverMenu.Root` aliases `Popover<Menu, MenuItem>.ContentView`, which is the top-level <xref:Terminal.Gui.Views.Menu>
+   - A `CommandBridge` (created by the `ContentView` setter in `Popover<TView, TResult>`) bridges <xref:Terminal.Gui.Input.Command.Activate> from the Root Menu to the PopoverMenu
    - <xref:Terminal.Gui.Views.Menu> self-manages SubMenu show/hide and basic positioning via `OnSelectedMenuItemChanged()`
    - <xref:Terminal.Gui.Views.PopoverMenu> adjusts positioning for screen boundaries and manages its own visibility lifecycle
 
@@ -354,7 +358,7 @@ The menu system has two non-containment boundaries that require `CommandBridge`:
 
 | Mode | When It Occurs | Effect |
 |------|---------------|--------|
-| **Direct** | User presses `F9`, or programmatic `InvokeCommand` | MenuBar toggles `Active` on/off |
+| **Direct** | User presses `F10`, or programmatic `InvokeCommand` | MenuBar toggles `Active` on/off |
 | **BubblingUp** | MenuBarItem activation bubbles to MenuBar | MenuBar identifies the source MenuBarItem and shows/hides its PopoverMenu |
 | **Bridged** | MenuItem activation inside PopoverMenu bridges to MenuBarItem | MenuBarItem ignores the command (notification only — no PopoverMenu toggle) |
 
@@ -373,7 +377,7 @@ The menu system has two non-containment boundaries that require `CommandBridge`:
 
 ### MenuBar Activation Flow
 
-1. User presses `F9` (default) or clicks on <xref:Terminal.Gui.Views.MenuBar>
+1. User presses `F10` (default) or clicks on <xref:Terminal.Gui.Views.MenuBar>
 2. MenuBar's HotKey handler fires — for direct activation, this calls [InvokeCommand()](xref:Terminal.Gui.ViewBase.View.InvokeCommand*) (<xref:Terminal.Gui.Input.Command.Activate>)
 3. `MenuBar.OnActivating` runs:
    - If `!Visible || !Enabled`: activation is blocked
@@ -407,11 +411,12 @@ The `_isSwitchingItem` guard prevents premature deactivation during the brief in
 
 ### PopoverMenu Display Flow
 
-1. `MakeVisible()` is called (optionally with a position)
-2. `SetPosition()` calculates a visible location on screen
-3. `Application.Popover.Show()` is invoked
-4. `OnVisibleChanged()` adds and lays out the `Root` menu
-5. First <xref:Terminal.Gui.Views.MenuItem> receives focus
+1. `MakeVisible()` is called (optionally with a position) — inherited from `Popover<TView, TResult>`
+2. `Popover<TView, TResult>.SetPosition()` calculates a visible location on screen (PopoverMenu overrides with `new SetPosition` for menu-specific positioning)
+3. `Application.Popover.Show()` is invoked, setting `Visible = true`
+4. `PopoverMenu.OnVisibleChanged()` runs — calls `Root.ShowMenu()` (setting `Visible = true` and `Enabled = true` on the root Menu) **before** `base.OnVisibleChanged()` to ensure the Menu is enabled for focus
+5. `Popover<TView, TResult>.OnVisibleChanged()` syncs `ContentView.Visible`
+6. First <xref:Terminal.Gui.Views.MenuItem> receives focus
 
 **Prerequisite:** The <xref:Terminal.Gui.Views.PopoverMenu> must be registered with `Application.Popover` before `MakeVisible` is called. For <xref:Terminal.Gui.Views.MenuBarItem>, registration happens automatically in `EndInit`. For standalone context menus, call `Application.Popover?.Register (contextMenu)` explicitly.
 
@@ -443,13 +448,13 @@ When a user presses Enter or clicks a <xref:Terminal.Gui.Views.MenuItem>:
 
 | Key | Action |
 |-----|--------|
-| `F9` | Toggle MenuBar activation |
+| `F10` | Toggle MenuBar activation |
 | `Shift+F10` | Show context PopoverMenu |
 | `↑` / `↓` | Navigate within Menu |
 | `←` / `→` | Navigate MenuBar items / Expand-collapse submenus |
 | `Enter` | Accept selected MenuItem |
 | `Space` | Activate selected MenuItem (e.g., toggle a CheckBox CommandView) |
-| `Escape` / `QuitKey` | Close menu / Deactivate MenuBar |
+| `Escape` / `Application.GetDefaultKey (Command.Quit)` | Close menu / Deactivate MenuBar |
 | Hotkey (e.g., `Alt+F`) | Activate/toggle specific MenuBarItem |
 | Hotkey in Menu | Jump to MenuItem with matching hotkey |
 
@@ -471,7 +476,7 @@ MenuBar menuBar = new ([
         new MenuItem ("_New", "", () => MessageBox.Query ("New", "Create new file?", "OK", "Cancel")),
         new MenuItem ("_Open...", "", () => MessageBox.Query ("Open", "Open file dialog", "OK")),
         new Line (),
-        new MenuItem ("E_xit", Application.QuitKey, () => Application.RequestStop ())
+        new MenuItem ("E_xit", Application.GetDefaultKey (Command.Quit), () => Application.RequestStop ())
     ]),
     new MenuBarItem ("_Edit", [
         new MenuItem ("_Undo", Key.Z.WithCtrl, () => { }),
@@ -533,7 +538,8 @@ MenuBar menuBar = new ([
 ### CheckBox in Menu
 
 ```csharp
-CheckBox wordWrapCheckBox = new () { Title = "_Word Wrap" };
+// Set CommandView.CanFocus = false to ensure the MenuItem receives activation for the CheckBox
+CheckBox wordWrapCheckBox = new () { Title = "_Word Wrap", CanFocus = false };
 wordWrapCheckBox.CheckedStateChanging += (_, e) =>
 {
     editor.WordWrap = e.NewValue == CheckState.Checked;
@@ -612,8 +618,13 @@ MenuItem's CommandView (e.g., CheckBox)
 MenuItem
   ├─ Activating / Activated events
   ↓ (bubbles via CommandsToBubbleUp)
-Menu (Root)
-  ↓ (CommandBridge bridges to MenuBarItem)
+Menu (Root / ContentView)
+  ├─ Activated event
+  ↓ (ContentView CommandBridge bridges to PopoverMenu)
+PopoverMenu
+  ├─ OnActivating hides popover for non-HotKey bridged commands
+  ├─ Activated event
+  ↓ (Target CommandBridge bridges to MenuBarItem)
 MenuBarItem
   ├─ OnActivating sees Bridged routing → ignores (no toggle)
   ↓ (bubbles to SuperView)
@@ -653,11 +664,11 @@ NewKeyDownEvent (key)
 ```
 
 For menus specifically:
-- <xref:Terminal.Gui.Views.MenuBar> binds `F9` to <xref:Terminal.Gui.Input.Command.HotKey> (via `HotKeyBindings`)
-- <xref:Terminal.Gui.Views.MenuBar> binds `F9` and `Application.QuitKey` to `Command.Quit` (via `KeyBindings`)
+- <xref:Terminal.Gui.Views.MenuBar> binds `F10` to <xref:Terminal.Gui.Input.Command.HotKey> (via `HotKeyBindings`)
+- <xref:Terminal.Gui.Views.MenuBar> binds `F10` and `Application.GetDefaultKey (Command.Quit)` to `Command.Quit` (via `KeyBindings`)
 - <xref:Terminal.Gui.Views.MenuBar> binds arrow keys to `Command.Right`/`Command.Left`
 - <xref:Terminal.Gui.Views.PopoverMenu> binds arrow keys to `Command.Right`/`Command.Left` for submenu navigation
-- <xref:Terminal.Gui.Views.PopoverMenu> binds `Escape`/`QuitKey` to `Command.Quit`
+- <xref:Terminal.Gui.Views.PopoverMenu> binds `Escape`/quit key to `Command.Quit`
 
 ---
 
@@ -690,7 +701,7 @@ These can also be configured in `config.json`:
     }
   },
   "Settings": {
-    "MenuBar.DefaultKey": "F9",
+    "MenuBar.DefaultKey": "F10",
     "PopoverMenu.DefaultKey": "Shift+F10"
   }
 }

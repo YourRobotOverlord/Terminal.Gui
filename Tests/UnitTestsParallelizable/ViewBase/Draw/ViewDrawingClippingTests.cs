@@ -1,6 +1,5 @@
 ﻿using System.Text;
 using UnitTests;
-using Xunit.Abstractions;
 
 namespace ViewBaseTests.Drawing;
 
@@ -360,7 +359,7 @@ public class ViewDrawingClippingTests (ITestOutputHelper output) : TestDriverBas
             Height = 1,
             Driver = driver
         };
-        view.Border!.Thickness = new (1);
+        view.Border.Thickness = new (1);
         view.BeginInit ();
         view.EndInit ();
         view.LayoutSubViews ();
@@ -593,8 +592,8 @@ public class ViewDrawingClippingTests (ITestOutputHelper output) : TestDriverBas
         output.WriteLine ("Driver Output After Redraw:\n" + driver.GetOutput().GetLastOutput());
 
         // BUGBUG: Border.set_LineStyle does not call SetNeedsDraw
-        viewWithBorderAtX1!.Border!.LineStyle = LineStyle.Single;
-        viewWithBorderAtX1.Border!.SetNeedsDraw ();
+        viewWithBorderAtX1!.Border.LineStyle = LineStyle.Single;
+        viewWithBorderAtX1.Border.View?.SetNeedsDraw ();
         app.LayoutAndDraw ();
 
         DriverAssert.AssertDriverContentsAre (
@@ -909,7 +908,7 @@ public class ViewDrawingClippingTests (ITestOutputHelper output) : TestDriverBas
             Height = 1,
             Driver = driver
         };
-        view.Border!.Thickness = new (1);
+        view.Border.Thickness = new (1);
         view.BeginInit ();
         view.EndInit ();
         view.LayoutSubViews ();

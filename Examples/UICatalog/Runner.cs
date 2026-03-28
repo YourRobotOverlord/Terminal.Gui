@@ -136,7 +136,7 @@ public class Runner
 
         if (benchmarkWindow.Border is { })
         {
-            benchmarkWindow.Border!.Thickness = new Thickness (0, 0, 0, 0);
+            benchmarkWindow.Border.Thickness = new Thickness (0, 0, 0, 0);
         }
 
         TableView resultsTableView = new () { Width = Dim.Fill (), Height = Dim.Fill () };
@@ -148,7 +148,7 @@ public class Runner
         resultsTableView.Style.ShowHeaders = true;
         resultsTableView.Style.ShowHorizontalHeaderOverline = false;
         resultsTableView.Style.ShowHorizontalHeaderUnderline = true;
-        resultsTableView.Style.ShowHorizontalBottomline = false;
+        resultsTableView.Style.ShowHorizontalBottomLine = false;
         resultsTableView.Style.ShowVerticalCellLines = true;
         resultsTableView.Style.ShowVerticalHeaderLines = true;
 

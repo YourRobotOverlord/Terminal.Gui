@@ -1,8 +1,11 @@
+using Microsoft.Extensions.Logging;
+using UnitTests.Parallelizable;
 using Terminal.Gui.Tracing;
+using UnitTests;
 
 namespace ViewsTests;
 
-public class MenuBarTests
+public class MenuBarTests (ITestOutputHelper output)
 {
     [Fact]
     public void Command_HotKey_Activates ()
@@ -290,8 +293,8 @@ public class MenuBarTests
         Assert.NotNull (optionSelector);
         Assert.Equal (Schemes.Base, optionSelector.Value);
 
-        // Find the "Error" checkbox (index 4)
-        CheckBox? errorCheckBox = optionSelector.SubViews.OfType<CheckBox> ().FirstOrDefault (cb => (int)cb.Data! == (int)Schemes.Error);
+        // Find the "Error" checkbox (index 4 in the Schemes enum)
+        CheckBox? errorCheckBox = optionSelector.SubViews.OfType<CheckBox> ().ElementAtOrDefault ((int)Schemes.Error);
         Assert.NotNull (errorCheckBox);
 
         // Subscribe to ValueChanged
@@ -358,7 +361,7 @@ public class MenuBarTests
         OptionSelector<Schemes>? optionSelector = optionMenuItem!.CommandView as OptionSelector<Schemes>;
         Assert.Equal (Schemes.Base, optionSelector!.Value);
 
-        CheckBox? errorCheckBox = optionSelector.SubViews.OfType<CheckBox> ().FirstOrDefault (cb => (int)cb.Data! == (int)Schemes.Error);
+        CheckBox? errorCheckBox = optionSelector.SubViews.OfType<CheckBox> ().ElementAtOrDefault ((int)Schemes.Error);
 
         Schemes? newValue = null;
         var valueChangedCount = 0;
@@ -419,7 +422,7 @@ public class MenuBarTests
         OptionSelector<Schemes>? optionSelector = optionMenuItem!.CommandView as OptionSelector<Schemes>;
         Assert.Equal (Schemes.Base, optionSelector!.Value);
 
-        CheckBox? errorCheckBox = optionSelector.SubViews.OfType<CheckBox> ().FirstOrDefault (cb => (int)cb.Data! == (int)Schemes.Error);
+        CheckBox? errorCheckBox = optionSelector.SubViews.OfType<CheckBox> ().ElementAtOrDefault ((int)Schemes.Error);
 
         var valueChangedCount = 0;
 
@@ -510,7 +513,7 @@ public class MenuBarTests
         Assert.True (menuBar.IsOpen ());
 
         // Act — Quit command should close everything.
-        // Note: Application.QuitKey is a local KeyBinding, so we invoke the command directly
+        // Note: Application.GetDefaultKey (Command.Quit) is a local KeyBinding, so we invoke the command directly
         // because the PopoverMenu has focus (separate view hierarchy from MenuBar).
         menuBar.InvokeCommand (Command.Quit);
         Assert.False (menuBar.Active);
@@ -1228,7 +1231,7 @@ public class MenuBarTests
         Assert.True (menuBarItem.PopoverMenu!.Visible);
 
         // Act — single Escape (QuitKey) should fully deactivate everything
-        app.InjectKey (Application.QuitKey);
+        app.InjectKey (Application.GetDefaultKey (Command.Quit));
 
         // Assert — MenuBar should be completely inactive after ONE press
         Assert.False (menuBarItem.PopoverMenu!.Visible);
@@ -1361,7 +1364,7 @@ public class MenuBarTests
         Assert.NotNull (optionSelector);
 
         // Click on the Error checkbox
-        CheckBox? errorCheckBox = optionSelector.SubViews.OfType<CheckBox> ().FirstOrDefault (cb => (int)cb.Data! == (int)Schemes.Error);
+        CheckBox? errorCheckBox = optionSelector.SubViews.OfType<CheckBox> ().ElementAtOrDefault ((int)Schemes.Error);
         Assert.NotNull (errorCheckBox);
         errorCheckBox.SetFocus ();
         Point errorScreenPos = errorCheckBox.FrameToScreen ().Location;
@@ -1551,6 +1554,7 @@ public class MenuBarTests
 
         // Add a standalone Menu like the Menus Scenario's TestMenu
         Menu testMenu = new () { Y = 10, Id = "TestMenu" };
+
         // ReSharper disable once StringLiteralTypo
         MenuItem testMenuItem1 = new () { Title = "Z_igzag", Text = "Gonna zig zag" };
         MenuItem testMenuItem2 = new () { Title = "_Borders", Text = "Borders" };
@@ -1604,11 +1608,11 @@ public class MenuBarTests
         MenuBarItem editItem = menuBar.SubViews.OfType<MenuBarItem> ().ElementAt (1);
         MenuBarItem helpItem = menuBar.SubViews.OfType<MenuBarItem> ().ElementAt (2);
 
-        // Act — press F9 to open MenuBar (File menu opens)
+        // Act — press F10 to open MenuBar (File menu opens)
         app.InjectKey (MenuBar.DefaultKey);
 
-        Assert.True (menuBar.Active, "MenuBar should be active after F9");
-        Assert.True (menuBar.IsOpen (), "MenuBar should be open after F9");
+        Assert.True (menuBar.Active, "MenuBar should be active after F10");
+        Assert.True (menuBar.IsOpen (), "MenuBar should be open after F10");
         Assert.True (fileItem.PopoverMenu is { Visible: true }, "File's popover should be visible");
 
         // Act — press CursorRight to switch to Edit menu
@@ -1670,6 +1674,7 @@ public class MenuBarTests
         // Create a focusable view that should receive keys after deactivation
         var keyReceived = false;
         View focusableView = new () { Id = "focusableView", CanFocus = true, Width = Dim.Fill (), Height = Dim.Fill () };
+
         focusableView.KeyDown += (_, k) =>
                                  {
                                      if (k == Key.B)
@@ -1691,11 +1696,11 @@ public class MenuBarTests
         Assert.True (menuBar.IsOpen (), "MenuBar should be open");
 
         // Navigate to the Themes item and open its submenu
-        app.InjectKey (Key.CursorDown);  // Focus on _Themes
+        app.InjectKey (Key.CursorDown); // Focus on _Themes
         app.InjectKey (Key.CursorRight); // Open submenu
 
         // Close the menu entirely
-        app.InjectKey (Application.QuitKey);
+        app.InjectKey (Application.GetDefaultKey (Command.Quit));
 
         Assert.False (menuBar.Active, "MenuBar should be deactivated");
         Assert.False (menuBar.IsOpen (), "No popover should be open");
@@ -1755,7 +1760,7 @@ public class MenuBarTests
         // Open File menu, navigate to Themes, open its submenu
         app.InjectKey (MenuBar.DefaultKey);
         Assert.True (menuBarItem1.PopoverMenu is { Visible: true }, "File's popover should be visible");
-        app.InjectKey (Key.CursorDown);  // Focus on _Themes
+        app.InjectKey (Key.CursorDown); // Focus on _Themes
         app.InjectKey (Key.CursorRight); // Open submenu, focus on _Bold
         Assert.True (subMenu.Visible, "SubMenu should be visible after CursorRight");
 
@@ -1794,7 +1799,14 @@ public class MenuBarTests
         hostView.Add (menuBar);
 
         // A separate focusable view that has focus (simulates scenarios TableView)
-        View contentView = new () { Id = "content", CanFocus = true, Width = Dim.Fill (), Height = Dim.Fill (), Y = 1 };
+        View contentView = new ()
+        {
+            Id = "content",
+            CanFocus = true,
+            Width = Dim.Fill (),
+            Height = Dim.Fill (),
+            Y = 1
+        };
         hostView.Add (contentView);
 
         ((View)runnable).Add (hostView);
@@ -1881,8 +1893,10 @@ public class MenuBarTests
     {
         ListBackend traceBackend = new ();
         Trace.Backend = traceBackend;
-        Trace.CommandEnabled = true;
-        Trace.KeyboardEnabled = true;
+
+        // Do not set this unless debugging. It is a static that is process wide.
+        //Trace.EnabledCategories |= TraceCategory.Command;
+        //Trace.EnabledCategories |= TraceCategory.Keyboard;
 
         try
         {
@@ -1932,19 +1946,7 @@ public class MenuBarTests
                                                                                                   _ => e.Data?.ToString () ?? ""
                                                                                               };
 
-                                                                             return $"  [{
-                                                                                 e.Category
-                                                                             }:{
-                                                                                 e.Phase
-                                                                             }] {
-                                                                                 e.Id
-                                                                             } ({
-                                                                                 e.Method
-                                                                             }) {
-                                                                                 e.Message
-                                                                             } [{
-                                                                                 dataStr
-                                                                             }]";
+                                                                             return $"  [{e.Category}:{e.Phase}] {e.Id} ({e.Method}) {e.Message} [{dataStr}]";
                                                                          }));
 
             // The real assertions — with trace dump in failure message
@@ -1954,8 +1956,6 @@ public class MenuBarTests
         }
         finally
         {
-            Trace.CommandEnabled = false;
-            Trace.KeyboardEnabled = false;
             Trace.Backend = new NullBackend ();
         }
     }
@@ -1976,6 +1976,7 @@ public class MenuBarTests
         hostView.Add (menuBar);
 
         Menu testMenu = new () { Y = 10, Id = "TestMenu" };
+
         // ReSharper disable once StringLiteralTypo
         MenuItem testMenuItem1 = new () { Title = "Z_igzag", Text = "Gonna zig zag" };
         testMenu.Add (testMenuItem1);
@@ -2028,6 +2029,175 @@ public class MenuBarTests
         foreach (View sub in view.SubViews)
         {
             DumpView (sub, indent + 1, lines);
+        }
+    }
+
+    #endregion
+
+    #region IValue Integration Tests
+
+    // Claude - Opus 4.5
+    [Fact]
+    public void MenuBar_Activated_ContextValue_ContainsMenuItem ()
+    {
+        using (TestLogging.BindTo (output, LogLevel.Warning))
+        {
+            // Do not set this unless debugging. It is a static that is process wide.
+            //Trace.EnabledCategories = TraceCategory.Command;
+
+            VirtualTimeProvider time = new ();
+            using IApplication app = Application.Create (time);
+            app.Init (DriverRegistry.Names.ANSI);
+            Runnable runnable = new ();
+
+            MenuBar menuBar = new ();
+            runnable.Add (menuBar);
+
+            MenuItem menuItem = new () { Title = "TestItem" };
+            PopoverMenu popoverMenu = new ([menuItem]);
+            MenuBarItem menuBarItem = new ("Test", popoverMenu);
+            menuBar.Add (menuBarItem);
+
+            // Register the popoverMenu with Application
+            app.Popovers?.Register (popoverMenu);
+
+            string? lastActivatedValueText = null;
+            var menuBarActivatedCount = 0;
+
+            menuBar.Activated += (_, args) =>
+                                 {
+                                     menuBarActivatedCount++;
+
+                                     if (args?.Value?.Value is string title)
+                                     {
+                                         lastActivatedValueText = title;
+                                     }
+                                 };
+
+            // Invoke Activate command on the MenuItem
+            menuItem.InvokeCommand (Command.Activate);
+
+            Assert.Equal (1, menuBarActivatedCount);
+            Assert.Equal (menuItem.Title, lastActivatedValueText);
+
+            runnable.Dispose ();
+        }
+    }
+
+    // Claude - Opus 4.6
+    [Fact]
+    public void Menu_Activate_WithFocusedMenuItem_DoesNotStackOverflow ()
+    {
+        VirtualTimeProvider time = new ();
+        using IApplication app = Application.Create (time);
+        app.Init (DriverRegistry.Names.ANSI);
+        Runnable runnable = new ();
+
+        Menu menu = new ();
+        MenuItem menuItem = new () { Title = "TestItem", CanFocus = true };
+        menu.Add (menuItem);
+        runnable.Add (menu);
+
+        app.Begin (runnable);
+
+        // Focus the MenuItem inside the Menu (simulates real scenario)
+        menuItem.SetFocus ();
+        Assert.True (menuItem.HasFocus);
+
+        // This should NOT stack overflow
+        menuItem.InvokeCommand (Command.Activate);
+
+        // Value should be set to the activated MenuItem
+        Assert.Same (menuItem, menu.Value);
+
+        runnable.Dispose ();
+    }
+
+    // Claude - Opus 4.6
+    [Fact]
+    public void PopoverMenu_Activate_WithFocusedMenuItem_DoesNotStackOverflow ()
+    {
+        VirtualTimeProvider time = new ();
+        using IApplication app = Application.Create (time);
+        app.Init (DriverRegistry.Names.ANSI);
+        Runnable runnable = new ();
+
+        MenuItem menuItem = new () { Title = "TestItem" };
+        PopoverMenu popoverMenu = new ([menuItem]);
+        runnable.Add (popoverMenu);
+
+        app.Popovers?.Register (popoverMenu);
+        app.Begin (runnable);
+
+        // Get the Menu inside the PopoverMenu and focus the MenuItem
+        Menu? menu = popoverMenu.SubViews.OfType<Menu> ().FirstOrDefault ();
+        Assert.NotNull (menu);
+
+        popoverMenu.Visible = true;
+        menuItem.SetFocus ();
+
+        // This should NOT stack overflow
+        menuItem.InvokeCommand (Command.Activate);
+
+        // Value should propagate to the Menu
+        Assert.Same (menuItem, menu.Value);
+
+        runnable.Dispose ();
+    }
+
+    // Claude - Opus 4.6
+    [Fact]
+    public void MenuBar_Activated_ContextValue_WithFocusedMenuItem ()
+    {
+        using (TestLogging.BindTo (output, LogLevel.Warning))
+        {
+            // Do not set this unless debugging. It is a static that is process wide.
+            //Trace.EnabledCategories = TraceCategory.Command;
+
+            VirtualTimeProvider time = new ();
+            using IApplication app = Application.Create (time);
+            app.Init (DriverRegistry.Names.ANSI);
+            Runnable runnable = new ();
+
+            MenuBar menuBar = new ();
+            runnable.Add (menuBar);
+
+            MenuItem menuItem = new () { Title = "TestItem" };
+            PopoverMenu popoverMenu = new ([menuItem]);
+            MenuBarItem menuBarItem = new ("Test", popoverMenu);
+            menuBar.Add (menuBarItem);
+
+            app.Popovers?.Register (popoverMenu);
+            app.Begin (runnable);
+
+            string? lastActivatedValueText = null;
+            var menuBarActivatedCount = 0;
+
+            menuBar.Activated += (_, args) =>
+                                 {
+                                     menuBarActivatedCount++;
+
+                                     if (args?.Value?.Value is string title)
+                                     {
+                                         lastActivatedValueText = title;
+                                     }
+                                 };
+
+            // Focus the MenuItem (simulates real user interaction)
+            Menu? menu = popoverMenu.SubViews.OfType<Menu> ().FirstOrDefault ();
+            Assert.NotNull (menu);
+
+            popoverMenu.Visible = true;
+            menuItem.SetFocus ();
+            Assert.True (menuItem.HasFocus);
+
+            // Invoke Activate - should not stack overflow and ctx.Value should work
+            menuItem.InvokeCommand (Command.Activate);
+
+            Assert.Equal (1, menuBarActivatedCount);
+            Assert.Equal (menuItem.Title, lastActivatedValueText);
+
+            runnable.Dispose ();
         }
     }
 
