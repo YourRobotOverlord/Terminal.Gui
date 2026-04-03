@@ -198,7 +198,7 @@ public class ListWrapper<T> : IListDataSource
                 continue;
             }
 
-            int l = t is string s ? s.GetColumns () : t.ToString ()!.GetColumns ();
+            int l = t is string u ? u.GetColumns () : t.ToString ()!.Length;
 
             if (l > maxLength)
             {
