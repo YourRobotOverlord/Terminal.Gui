@@ -1,5 +1,14 @@
 # Proposal: Automated AI Migration Guide for Breaking Changes
 
+> **Relates to:** [Issue #4865 — Agent-Friendliness Plan](https://github.com/gui-cs/Terminal.Gui/issues/4865)
+>
+> This proposal addresses the specific breaking-change migration documentation gap
+> identified in the comments of #4865 and acknowledged by @tig. It is designed to
+> complement the broader agent-friendliness plan in that issue, fitting within
+> **Phase 4 (Handle Churn Automatically)** and delivering concrete value to
+> contributors actively migrating codebases (e.g., the `ShadowStyle → ShadowStyles`
+> class of changes cited in the issue thread).
+
 ## Problem
 
 Terminal.Gui is an actively developed library with breaking API changes between releases.
@@ -12,12 +21,30 @@ This gap causes real problems:
 - Agents suggest deprecated or removed APIs
 - Agents cannot guide users through non-obvious migrations (e.g., a renamed method,
   a restructured architecture, a changed event signature)
-- Users waste time debugging compile errors or runtime failures caused by stale AI advice
+- Users migrating large codebases (confirmed real case in #4865: hundreds of errors,
+  no clear guidance) waste time debugging rather than shipping
 
 Breaking changes are already labeled `breaking-change` on all relevant PRs. The information
 needed for migration guidance (what changed, why, and how to update) is typically written
 in the PR description at merge time. **The bottleneck is making that information available
 to AI agents in a structured, discoverable way.**
+
+---
+
+## Relationship to Issue #4865
+
+The broader issue defines a phased agent-friendliness plan. This proposal specifically
+addresses **Phase 4C** (a new sub-item within Phase 4: Handle Churn Automatically):
+
+| Phase | What | This PR? |
+|-------|------|----------|
+| Phase 1 | v1→v2 corrections table in `llms.txt` + `AGENTS.md` | No — separate PR |
+| Phase 2 | Broaden to Cursor/Windsurf/Aider | No — separate PR |
+| Phase 3 | Docs site LLM-accessible (llms.txt, llms-full.txt) | No — separate PR |
+| **Phase 4C** | **Auto-update breaking-change migration doc on PR merge** | **✅ This PR** |
+| Phase 5 | Agent benchmark + measurement | No — future work |
+
+This is intentionally scoped narrowly. Each phase in #4865 is a separate PR.
 
 ---
 
@@ -170,8 +197,30 @@ breaking-change PRs using the GitHub CLI.
    Is that the right home, or should it be in a separate agent-only location (e.g., `.tg-docs/`)?
 
 2. **Backfill:** Do we want to backfill historical breaking changes, and if so, how far back?
+   A script can be written to replay past breaking-change PRs using the GitHub CLI.
+   The `ShadowStyle → ShadowStyles` case from #4865 comments is a good first test.
 
 3. **PR template enforcement:** Should the `## Migration Steps` section be required (CI check)
-   for PRs labeled `breaking-change`, or remain advisory?
+   for PRs labeled `breaking-change`, or remain advisory (workflow posts a comment if missing)?
 
 4. **Scope:** Should this cover `v2_develop` only, or also `v2_release`?
+
+5. **Phasing with #4865:** Should a Phase 1 change (v1→v2 corrections table in `llms.txt`
+   and `AGENTS.md`) be bundled into this PR or kept strictly separate? Bundling increases
+   impact; keeping separate keeps PRs reviewable. The issue maintainer (@tig) has asked for
+   contributors to step up — doing both in one pass is an option if bandwidth allows.
+
+---
+
+## Future PRs (from Issue #4865)
+
+After this PR lands, the following can be tackled separately in priority order:
+
+| Priority | Work | Issue Section |
+|----------|------|---------------|
+| 1 | v1→v2 corrections table in `llms.txt` + `AGENTS.md` | Phase 1A |
+| 2 | Expand `llms.txt` to include snippets + gotchas | Phase 1B |
+| 3 | Flesh out `.cursorrules` | Phase 2A |
+| 4 | Create `.windsurfrules` | Phase 2B |
+| 5 | `llms.txt` on docs site | Phase 3A |
+| 6 | CI auto-regeneration of apispec from source | Phase 4A |
