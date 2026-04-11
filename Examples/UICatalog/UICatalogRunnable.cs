@@ -228,7 +228,16 @@ public sealed class UICatalogRunnable : Runnable
                 {
                     return;
                 }
-                ThemeManager.Theme = ThemeManager.GetThemeNames () [(int)args.NewValue];
+
+                string selectedTheme = ThemeManager.GetThemeNames () [(int)args.NewValue];
+
+                if (selectedTheme == ThemeManager.GetCurrentThemeName ())
+                {
+                    return;
+                }
+
+                ThemeManager.Theme = selectedTheme;
+                UICatalogSettingsPersistence.PersistThemeSelection ();
             }
         }
 
