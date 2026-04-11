@@ -11,6 +11,7 @@ Terminal.Gui provides a comprehensive configuration system that allows users and
 - [Themes and Schemes](#themes-and-schemes)
 - [Defining Configuration Properties](#defining-configuration-properties)
 - [Loading and Applying Configuration](#loading-and-applying-configuration)
+- [Saving Configuration](#saving-configuration)
 - [Events](#events)
 - [What Can Be Configured](#what-can-be-configured)
 - [Configuration File Format](#configuration-file-format)
@@ -543,6 +544,64 @@ Reset all settings to hard-coded defaults:
 ```csharp
 ConfigurationManager.ResetToHardCodedDefaults();
 ```
+
+---
+
+## Saving Configuration
+
+`ConfigurationManager` can save the **current effective merged configuration state** to a writable file target.
+
+### Supported Save Targets
+
+`ConfigurationManager.Save(ConfigLocations location)` supports these file-backed locations:
+
+- `ConfigLocations.GlobalHome`
+- `ConfigLocations.GlobalCurrent`
+- `ConfigLocations.AppHome`
+- `ConfigLocations.AppCurrent`
+
+It does **not** support:
+
+- `ConfigLocations.HardCoded`
+- `ConfigLocations.LibraryResources`
+- `ConfigLocations.AppResources`
+- `ConfigLocations.Env`
+- `ConfigLocations.Runtime`
+- `ConfigLocations.All`
+- multi-flag combinations
+
+### Save to a Standard Configuration Location
+
+```csharp
+ConfigurationManager.Enable(ConfigLocations.All);
+
+// Change settings in memory
+MyApp.WindowWidth = 100;
+ThemeManager.Theme = "Dark";
+
+// Save the current effective configuration to ./.tui/MyApp.config.json
+ConfigurationManager.Save(ConfigLocations.AppCurrent);
+```
+
+### Save to a Specific File
+
+```csharp
+ConfigurationManager.Enable(ConfigLocations.All);
+
+MyApp.WindowWidth = 100;
+MyApp.WindowHeight = 40;
+
+ConfigurationManager.Save(@"C:\temp\myapp.config.json");
+```
+
+### Save Semantics
+
+- Save snapshots the **current live values** of configuration properties
+- Save writes the **effective merged state**, not the minimal set of overrides from a single source
+- Save creates parent directories as needed
+- Save writes atomically to reduce partial-write risk
+
+This means a saved file can be loaded again with `ConfigurationManager.Load(...)`, but it may contain values that originally came from several different configuration layers.
 
 ---
 

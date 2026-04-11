@@ -1422,6 +1422,9 @@ public class ConfigurationMangerTests (ITestOutputHelper output)
     [ConfigurationProperty (Scope = typeof (CMTestsScope))]
     public static bool? TestProperty { get; set; }
 
+    [ConfigurationProperty]
+    public static bool? TestAppSetting { get; set; } = false;
+
     private class CMTestsScope : Scope<CMTestsScope>
     { }
 
@@ -1432,6 +1435,134 @@ public class ConfigurationMangerTests (ITestOutputHelper output)
 
         Assert.NotNull (props);
         Assert.NotEmpty (props);
+    }
+
+    // Copilot
+    [Fact]
+    public void Save_WithStringFilePath_Writes_Current_Effective_State_And_RoundTrips ()
+    {
+        Assert.False (IsEnabled);
+
+        string originalAppName = AppName;
+        string tempRoot = Path.Combine (Path.GetTempPath (), Guid.NewGuid ().ToString ());
+        string filePath = Path.Combine (tempRoot, "nested", "saved.config.json");
+
+        try
+        {
+            Enable (ConfigLocations.HardCoded);
+
+            AppName = "ConfigurationManagerSaveTests";
+            FileDialog.MaxSearchResults = 42;
+            TestAppSetting = true;
+
+            Save (filePath);
+
+            Assert.True (File.Exists (filePath));
+
+            string json = File.ReadAllText (filePath);
+
+            Assert.Contains ("\"FileDialog.MaxSearchResults\": 42", json);
+            Assert.Contains ("\"AppSettings\"", json);
+            Assert.Contains ("\"ConfigurationMangerTests.TestAppSetting\": true", json);
+
+            FileDialog.MaxSearchResults = 10000;
+            TestAppSetting = false;
+
+            LoadHardCodedDefaults ();
+            ConfigurationManager.SourcesManager!.Load (Settings, filePath, ConfigLocations.AppCurrent);
+            Apply ();
+
+            Assert.Equal (42, FileDialog.MaxSearchResults);
+            Assert.True (TestAppSetting);
+        }
+        finally
+        {
+            AppName = originalAppName;
+            Disable (true);
+
+            if (Directory.Exists (tempRoot))
+            {
+                Directory.Delete (tempRoot, true);
+            }
+        }
+    }
+
+    // Copilot
+    [Fact]
+    public void Save_WithConfigLocation_AppCurrent_Writes_ToResolvedPath ()
+    {
+        Assert.False (IsEnabled);
+
+        string originalAppName = AppName;
+        string originalCurrentDirectory = Environment.CurrentDirectory;
+        string tempRoot = Path.Combine (Path.GetTempPath (), Guid.NewGuid ().ToString ());
+
+        try
+        {
+            Directory.CreateDirectory (tempRoot);
+            Directory.SetCurrentDirectory (tempRoot);
+
+            Enable (ConfigLocations.HardCoded);
+
+            AppName = "ConfigurationManagerSaveAppCurrentTests";
+            FileDialog.MaxSearchResults = 24;
+            TestAppSetting = true;
+
+            Save (ConfigLocations.AppCurrent);
+
+            string expectedPath = Path.Combine (tempRoot, ".tui", $"{AppName}.config.json");
+
+            Assert.True (File.Exists (expectedPath));
+
+            string json = File.ReadAllText (expectedPath);
+
+            Assert.Contains ("\"FileDialog.MaxSearchResults\": 24", json);
+            Assert.Contains ("\"ConfigurationMangerTests.TestAppSetting\": true", json);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory (originalCurrentDirectory);
+            AppName = originalAppName;
+            Disable (true);
+
+            if (Directory.Exists (tempRoot))
+            {
+                Directory.Delete (tempRoot, true);
+            }
+        }
+    }
+
+    // Copilot
+    [Fact]
+    public void Save_WithInvalidConfigLocation_Throws ()
+    {
+        Assert.False (IsEnabled);
+
+        ConfigLocations [] invalidLocations =
+        [
+            ConfigLocations.None,
+            ConfigLocations.All,
+            ConfigLocations.HardCoded,
+            ConfigLocations.LibraryResources,
+            ConfigLocations.AppResources,
+            ConfigLocations.Env,
+            ConfigLocations.Runtime,
+            ConfigLocations.GlobalHome | ConfigLocations.AppCurrent
+        ];
+
+        try
+        {
+            Enable (ConfigLocations.HardCoded);
+
+            foreach (ConfigLocations invalidLocation in invalidLocations)
+            {
+                Assert.Throws<ArgumentException> (() => Save (invalidLocation));
+            }
+        }
+        finally
+        {
+            Disable (true);
+        }
     }
 
     [Fact]

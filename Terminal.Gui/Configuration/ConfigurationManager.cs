@@ -330,18 +330,6 @@ public static class ConfigurationManager
             throw new InvalidOperationException ("Initialize must be called first.");
         }
 
-        _settingsLockSlim.EnterWriteLock ();
-
-        try
-        {
-            _settings = new ();
-            _settings.LoadHardCodedDefaults ();
-        }
-        finally
-        {
-            _settingsLockSlim.ExitWriteLock ();
-        }
-
         Settings!.UpdateToCurrentValues ();
         ThemeManager.UpdateToCurrentValues ();
         AppSettings!.UpdateToCurrentValues ();
@@ -538,6 +526,71 @@ public static class ConfigurationManager
     public static event EventHandler<ConfigurationManagerEventArgs>? Applied;
 
     #endregion Apply
+
+    #region Save
+
+    /// <summary>
+    ///     Saves the current effective configuration state to the file-backed configuration source represented by
+    ///     <paramref name="location"/>.
+    /// </summary>
+    /// <param name="location">One writable, file-backed configuration location.</param>
+    /// <exception cref="ConfigurationManagerNotEnabledException">Configuration manager is not enabled.</exception>
+    /// <exception cref="ArgumentException"><paramref name="location"/> is not a supported writable location.</exception>
+    [RequiresUnreferencedCode ("Calls UpdateToCurrentValues and serializes SettingsScope")]
+    [RequiresDynamicCode ("Calls UpdateToCurrentValues and serializes SettingsScope")]
+    public static void Save (ConfigLocations location)
+    {
+        if (!IsEnabled)
+        {
+            throw new ConfigurationManagerNotEnabledException ();
+        }
+
+        string? filePath = global::Terminal.Gui.Configuration.SourcesManager.GetFilePath (location);
+
+        if (filePath is null || !IsSingleWritableLocation (location))
+        {
+            throw new ArgumentException (
+                                         $"{nameof (location)} must be one of {ConfigLocations.GlobalHome}, {ConfigLocations.GlobalCurrent}, {ConfigLocations.AppHome}, or {ConfigLocations.AppCurrent}.",
+                                         nameof (location)
+                                        );
+        }
+
+        Save (filePath);
+    }
+
+    /// <summary>
+    ///     Saves the current effective configuration state to <paramref name="filePath"/>.
+    /// </summary>
+    /// <param name="filePath">The file path to save to.</param>
+    /// <exception cref="ConfigurationManagerNotEnabledException">Configuration manager is not enabled.</exception>
+    /// <exception cref="ArgumentException"><paramref name="filePath"/> is null, empty, or whitespace.</exception>
+    [RequiresUnreferencedCode ("Calls UpdateToCurrentValues and serializes SettingsScope")]
+    [RequiresDynamicCode ("Calls UpdateToCurrentValues and serializes SettingsScope")]
+    public static void Save (string filePath)
+    {
+        if (!IsEnabled)
+        {
+            throw new ConfigurationManagerNotEnabledException ();
+        }
+
+        if (string.IsNullOrWhiteSpace (filePath))
+        {
+            throw new ArgumentException ("filePath must not be null or whitespace.", nameof (filePath));
+        }
+
+        UpdateToCurrentValues ();
+        SourcesManager!.Save (Settings, filePath);
+    }
+
+    private static bool IsSingleWritableLocation (ConfigLocations location)
+    {
+        return location is ConfigLocations.GlobalHome
+            or ConfigLocations.GlobalCurrent
+            or ConfigLocations.AppHome
+            or ConfigLocations.AppCurrent;
+    }
+
+    #endregion Save
 
     #region Sources
 

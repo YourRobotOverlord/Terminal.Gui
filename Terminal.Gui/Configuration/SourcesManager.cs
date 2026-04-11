@@ -44,6 +44,33 @@ public class SourcesManager
     private static bool IsPowerOfTwo (int value) { return value > 0 && (value & (value - 1)) == 0; }
 
     /// <summary>
+    ///     INTERNAL: Resolves the config file path for file-backed configuration locations.
+    /// </summary>
+    /// <param name="location">The configuration location to resolve.</param>
+    /// <returns>The unresolved config file path, or <see langword="null"/> if <paramref name="location"/> is not file-backed.</returns>
+    internal static string? GetFilePath (ConfigLocations location)
+    {
+        return location switch
+        {
+            ConfigLocations.GlobalHome => $"~/{TUI_CONFIG_FOLDER_S}/{ConfigurationManager.ConfigFilename}",
+            ConfigLocations.GlobalCurrent => $"./{TUI_CONFIG_FOLDER_S}/{ConfigurationManager.ConfigFilename}",
+            ConfigLocations.AppHome => $"~/{TUI_CONFIG_FOLDER_S}/{ConfigurationManager.AppName}.{ConfigurationManager.ConfigFilename}",
+            ConfigLocations.AppCurrent => $"./{TUI_CONFIG_FOLDER_S}/{ConfigurationManager.AppName}.{ConfigurationManager.ConfigFilename}",
+            _ => null
+        };
+    }
+
+    /// <summary>
+    ///     INTERNAL: Expands special path tokens such as <c>~</c>.
+    /// </summary>
+    /// <param name="filePath">The path to expand.</param>
+    /// <returns>The expanded path.</returns>
+    internal static string ExpandPath (string filePath)
+    {
+        return filePath.Replace ("~", Environment.GetFolderPath (Environment.SpecialFolder.UserProfile));
+    }
+
+    /// <summary>
     ///     INTERNAL: Loads configuration from the specified locations in the order defined by the
     ///     <see cref="ConfigLocations"/> enum bit values (lower bit values are loaded first, higher bit values override).
     /// </summary>
@@ -95,22 +122,10 @@ public class SourcesManager
                     break;
 
                 case ConfigLocations.GlobalHome:
-                    Load (settingsScope, $"~/{TUI_CONFIG_FOLDER_S}/{ConfigurationManager.ConfigFilename}", ConfigLocations.GlobalHome);
-
-                    break;
-
                 case ConfigLocations.GlobalCurrent:
-                    Load (settingsScope, $"./{TUI_CONFIG_FOLDER_S}/{ConfigurationManager.ConfigFilename}", ConfigLocations.GlobalCurrent);
-
-                    break;
-
                 case ConfigLocations.AppHome:
-                    Load (settingsScope, $"~/{TUI_CONFIG_FOLDER_S}/{ConfigurationManager.AppName}.{ConfigurationManager.ConfigFilename}", ConfigLocations.AppHome);
-
-                    break;
-
                 case ConfigLocations.AppCurrent:
-                    Load (settingsScope, $"./{TUI_CONFIG_FOLDER_S}/{ConfigurationManager.AppName}.{ConfigurationManager.ConfigFilename}", ConfigLocations.AppCurrent);
+                    Load (settingsScope, GetFilePath (location)!, location);
 
                     break;
 
@@ -202,7 +217,7 @@ public class SourcesManager
     [RequiresDynamicCode ("AOT")]
     internal bool Load (SettingsScope? settingsScope, string filePath, ConfigLocations location)
     {
-        string realPath = filePath.Replace ("~", Environment.GetFolderPath (Environment.SpecialFolder.UserProfile));
+        string realPath = ExpandPath (filePath);
 
         if (!File.Exists (realPath))
         {
@@ -328,5 +343,66 @@ public class SourcesManager
         stream.Position = 0;
 
         return stream;
+    }
+
+    /// <summary>
+    ///     INTERNAL: Saves the specified configuration scope to <paramref name="filePath"/> using an atomic replace.
+    /// </summary>
+    /// <param name="scope">The configuration scope to save.</param>
+    /// <param name="filePath">The path to write to.</param>
+    [RequiresUnreferencedCode ("AOT")]
+    [RequiresDynamicCode ("AOT")]
+    internal void Save (SettingsScope? scope, string filePath)
+    {
+        if (scope is null)
+        {
+            throw new InvalidOperationException ("Settings is null.");
+        }
+
+        if (string.IsNullOrWhiteSpace (filePath))
+        {
+            throw new ArgumentException ("filePath must not be null or whitespace.", nameof (filePath));
+        }
+
+        string realPath = ExpandPath (filePath);
+        string? directory = Path.GetDirectoryName (realPath);
+
+        if (string.IsNullOrEmpty (directory))
+        {
+            throw new ArgumentException ("filePath must include a directory.", nameof (filePath));
+        }
+
+        Directory.CreateDirectory (directory);
+
+        string tempFilePath = Path.Combine (directory, Path.GetRandomFileName ());
+        string json = ToJson (scope);
+
+        try
+        {
+            using (FileStream tempStream = new (tempFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                using StreamWriter writer = new (tempStream);
+
+                writer.Write (json);
+                writer.Flush ();
+                tempStream.Flush (true);
+            }
+
+            if (File.Exists (realPath))
+            {
+                File.Replace (tempFilePath, realPath, null);
+            }
+            else
+            {
+                File.Move (tempFilePath, realPath);
+            }
+        }
+        finally
+        {
+            if (File.Exists (tempFilePath))
+            {
+                File.Delete (tempFilePath);
+            }
+        }
     }
 }
