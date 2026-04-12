@@ -76,8 +76,17 @@ public class SpinnerView : View, IDesignable
         get => _useProgressIndicator;
         set
         {
+            bool wasEnabled = _useProgressIndicator;
             _useProgressIndicator = value;
-            UpdateProgressIndicator ();
+
+            if (value)
+            {
+                UpdateProgressIndicator ();
+            }
+            else if (wasEnabled)
+            {
+                App?.Driver?.ProgressIndicator?.Clear ();
+            }
         }
     }
 
@@ -215,7 +224,7 @@ public class SpinnerView : View, IDesignable
     /// <inheritdoc/>
     protected override void Dispose (bool disposing)
     {
-        if (disposing && _useProgressIndicator)
+        if (disposing)
         {
             App?.Driver?.ProgressIndicator?.Clear ();
         }

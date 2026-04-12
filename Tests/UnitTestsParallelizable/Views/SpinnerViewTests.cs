@@ -231,4 +231,32 @@ public class SpinnerViewTests : TestDriverBase
 
         app.Dispose ();
     }
+
+    // Copilot
+    [Fact]
+    public void UseProgressIndicator_SetFalseAfterTrue_ClearsIndicator ()
+    {
+        // Arrange: spinner was showing indeterminate, then UseProgressIndicator is disabled.
+        using IApplication app = Application.Create ();
+        app.Init (DriverRegistry.Names.ANSI);
+
+        DriverImpl driverImpl = (DriverImpl)app.Driver!;
+        driverImpl.ProgressIndicator = new ProgressIndicator (driverImpl);
+
+        SpinnerView spinner = new ()
+        {
+            App = app,
+            UseProgressIndicator = true
+        };
+
+        spinner.AutoSpin = true; // sends indeterminate
+
+        // Disabling the link should clear the indicator immediately.
+        spinner.UseProgressIndicator = false;
+
+        string output = driverImpl.GetOutput ().GetLastOutput ();
+        Assert.Contains (EscSeqUtils.OSC_ClearProgress (), output, StringComparison.Ordinal);
+
+        app.Dispose ();
+    }
 }
