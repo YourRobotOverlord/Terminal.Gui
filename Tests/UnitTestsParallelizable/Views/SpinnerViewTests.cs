@@ -85,4 +85,150 @@ public class SpinnerViewTests : TestDriverBase
 
         Assert.Equal ("|", driver.Contents! [0, 0].Grapheme);
     }
+
+    // Copilot
+    [Fact]
+    public void UseProgressIndicator_Default_IsFalse ()
+    {
+        SpinnerView spinner = new ();
+
+        Assert.False (spinner.UseProgressIndicator);
+    }
+
+    // Copilot
+    [Fact]
+    public void UseProgressIndicator_SetTrue_ReturnsTrue ()
+    {
+        SpinnerView spinner = new () { UseProgressIndicator = true };
+
+        Assert.True (spinner.UseProgressIndicator);
+    }
+
+    // Copilot
+    [Fact]
+    public void UseProgressIndicator_WithNoApp_DoesNotThrow ()
+    {
+        // When App is null, the property and AutoSpin setters must be safe to call.
+        SpinnerView spinner = new ();
+
+        Exception? ex = Record.Exception (() =>
+                                          {
+                                              spinner.UseProgressIndicator = true;
+                                              spinner.AutoSpin = true;
+                                              spinner.AutoSpin = false;
+                                              spinner.UseProgressIndicator = false;
+                                          });
+
+        Assert.Null (ex);
+    }
+
+    // Copilot
+    [Fact]
+    public void UseProgressIndicator_AutoSpinTrue_WritesIndeterminateSequence ()
+    {
+        // Arrange: create a full app+driver and inject a ProgressIndicator.
+        using IApplication app = Application.Create ();
+        app.Init (DriverRegistry.Names.ANSI);
+
+        DriverImpl driverImpl = (DriverImpl)app.Driver!;
+        driverImpl.ProgressIndicator = new ProgressIndicator (driverImpl);
+
+        SpinnerView spinner = new ()
+        {
+            UseProgressIndicator = true,
+            App = app
+        };
+
+        // Act: enable auto-spin, which should send the indeterminate sequence.
+        spinner.AutoSpin = true;
+
+        // Assert
+        string output = driverImpl.GetOutput ().GetLastOutput ();
+        Assert.Contains (EscSeqUtils.OSC_SetProgressIndeterminate (), output, StringComparison.Ordinal);
+
+        app.Dispose ();
+    }
+
+    // Copilot
+    [Fact]
+    public void UseProgressIndicator_AutoSpinFalse_ClearsProgressIndicator ()
+    {
+        // Arrange
+        using IApplication app = Application.Create ();
+        app.Init (DriverRegistry.Names.ANSI);
+
+        DriverImpl driverImpl = (DriverImpl)app.Driver!;
+        driverImpl.ProgressIndicator = new ProgressIndicator (driverImpl);
+
+        SpinnerView spinner = new ()
+        {
+            UseProgressIndicator = true,
+            App = app
+        };
+
+        // Prime by setting to indeterminate first, then turn off.
+        spinner.AutoSpin = true;
+        spinner.AutoSpin = false;
+
+        // Assert: a clear sequence should have been written.
+        string output = driverImpl.GetOutput ().GetLastOutput ();
+        Assert.Contains (EscSeqUtils.OSC_ClearProgress (), output, StringComparison.Ordinal);
+
+        app.Dispose ();
+    }
+
+    // Copilot
+    [Fact]
+    public void UseProgressIndicator_SetTrueWhileAutoSpinTrue_SendsIndeterminateImmediately ()
+    {
+        // Arrange: AutoSpin is already true when UseProgressIndicator is enabled.
+        using IApplication app = Application.Create ();
+        app.Init (DriverRegistry.Names.ANSI);
+
+        DriverImpl driverImpl = (DriverImpl)app.Driver!;
+        driverImpl.ProgressIndicator = new ProgressIndicator (driverImpl);
+
+        SpinnerView spinner = new ()
+        {
+            App = app
+        };
+
+        // Start spinning before linking the indicator.
+        spinner.AutoSpin = true;
+
+        // Enabling UseProgressIndicator while already spinning should immediately send indeterminate.
+        spinner.UseProgressIndicator = true;
+
+        string output = driverImpl.GetOutput ().GetLastOutput ();
+        Assert.Contains (EscSeqUtils.OSC_SetProgressIndeterminate (), output, StringComparison.Ordinal);
+
+        app.Dispose ();
+    }
+
+    // Copilot
+    [Fact]
+    public void UseProgressIndicator_WhenFalse_AutoSpinDoesNotWriteProgressSequence ()
+    {
+        // When UseProgressIndicator is false (the default), AutoSpin should not touch the terminal
+        // progress indicator at all.
+        using IApplication app = Application.Create ();
+        app.Init (DriverRegistry.Names.ANSI);
+
+        DriverImpl driverImpl = (DriverImpl)app.Driver!;
+        driverImpl.ProgressIndicator = new ProgressIndicator (driverImpl);
+
+        SpinnerView spinner = new ()
+        {
+            App = app,
+            UseProgressIndicator = false
+        };
+
+        spinner.AutoSpin = true;
+
+        string output = driverImpl.GetOutput ().GetLastOutput ();
+        Assert.DoesNotContain (EscSeqUtils.OSC_SetProgressIndeterminate (), output, StringComparison.Ordinal);
+        Assert.DoesNotContain (EscSeqUtils.OSC_ClearProgress (), output, StringComparison.Ordinal);
+
+        app.Dispose ();
+    }
 }

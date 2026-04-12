@@ -27,6 +27,7 @@ public class SpinnerView : View, IDesignable
     private string [] _sequence = DEFAULT_STYLE.Sequence;
     private SpinnerStyle _style = DEFAULT_STYLE;
     private object? _timeout;
+    private bool _useProgressIndicator;
 
     /// <summary>Creates a new instance of the <see cref="SpinnerView"/> class.</summary>
     public SpinnerView ()
@@ -55,11 +56,28 @@ public class SpinnerView : View, IDesignable
             if (value)
             {
                 AddAutoSpinTimeout ();
+                UpdateProgressIndicator ();
             }
             else
             {
                 RemoveAutoSpinTimeout ();
+                UpdateProgressIndicator ();
             }
+        }
+    }
+
+    /// <summary>
+    ///     Gets or sets whether the OSC 9;4 terminal progress indicator should be linked to <see cref="AutoSpin"/>.
+    ///     When <see langword="true"/>, setting <see cref="AutoSpin"/> to <see langword="true"/> sends an
+    ///     indeterminate progress sequence to the terminal, and setting it to <see langword="false"/> clears it.
+    /// </summary>
+    public bool UseProgressIndicator
+    {
+        get => _useProgressIndicator;
+        set
+        {
+            _useProgressIndicator = value;
+            UpdateProgressIndicator ();
         }
     }
 
@@ -197,6 +215,11 @@ public class SpinnerView : View, IDesignable
     /// <inheritdoc/>
     protected override void Dispose (bool disposing)
     {
+        if (disposing && _useProgressIndicator)
+        {
+            App?.Driver?.ProgressIndicator?.Clear ();
+        }
+
         RemoveAutoSpinTimeout ();
 
         base.Dispose (disposing);
@@ -282,6 +305,23 @@ public class SpinnerView : View, IDesignable
         {
             App?.RemoveTimeout (_timeout);
             _timeout = null;
+        }
+    }
+
+    private void UpdateProgressIndicator ()
+    {
+        if (!_useProgressIndicator)
+        {
+            return;
+        }
+
+        if (_autoSpin)
+        {
+            App?.Driver?.ProgressIndicator?.SetIndeterminate ();
+        }
+        else
+        {
+            App?.Driver?.ProgressIndicator?.Clear ();
         }
     }
 
