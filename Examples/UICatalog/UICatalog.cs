@@ -18,6 +18,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
@@ -55,6 +56,26 @@ public class UICatalog
     public static LoggingLevelSwitch LogLevelSwitch { get; } = new ();
     public const string LOGFILE_LOCATION = "logs";
     public static UICatalogCommandLineOptions Options { get; set; }
+
+    [ConfigurationProperty (Scope = typeof (AppSettingsScope), OmitClassName = true)]
+    [JsonPropertyName ("UICatalog.DebugLogLevel")]
+    public static string PersistedDebugLogLevel
+    {
+        get;
+        set
+        {
+            string normalizedValue = string.IsNullOrWhiteSpace (value) ? LogLevel.Warning.ToString () : value;
+
+            if (field == normalizedValue)
+            {
+                return;
+            }
+
+            field = normalizedValue;
+            Options = Options with { DebugLogLevel = normalizedValue };
+            LogLevelSwitch.MinimumLevel = LogLevelToLogEventLevel (Enum.Parse<LogLevel> (normalizedValue));
+        }
+    } = LogLevel.Warning.ToString ();
 
     /// <summary>
     ///     Gets the in-memory log capture for scenario debugging.

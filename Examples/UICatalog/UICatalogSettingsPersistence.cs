@@ -44,4 +44,48 @@ public static class UICatalogSettingsPersistence
         ConfigurationManager.Apply ();
         PersistCurrentConfiguration ();
     }
+
+    /// <summary>
+    ///     Persists the current status-bar preference.
+    /// </summary>
+    public static void PersistStatusBarPreference () => PersistCurrentConfiguration ();
+
+    /// <summary>
+    ///     Persists the current driver color-mode preference.
+    /// </summary>
+    public static void PersistDriverColorMode () => PersistCurrentConfiguration ();
+
+    /// <summary>
+    ///     Persists the current mouse preference.
+    /// </summary>
+    public static void PersistMousePreference (IApplication? app)
+    {
+        ApplyMousePreference (app);
+        PersistCurrentConfiguration ();
+    }
+
+    /// <summary>
+    ///     Applies the current mouse preference to the live application instance.
+    /// </summary>
+    public static void ApplyMousePreference (IApplication? app)
+    {
+        if (app is null)
+        {
+            return;
+        }
+
+#pragma warning disable CS0618
+        app.Mouse.IsMouseDisabled = Application.IsMouseDisabled;
+#pragma warning restore CS0618
+    }
+
+    /// <summary>
+    ///     Persists the current runnable scheme preference.
+    /// </summary>
+    public static void PersistRunnableSchemeSelection () => PersistCurrentConfiguration ();
+
+    /// <summary>
+    ///     Persists the current debug log-level preference.
+    /// </summary>
+    public static void PersistDebugLogLevel () => PersistCurrentConfiguration ();
 }

@@ -21,11 +21,13 @@ public sealed class UICatalogRunnable : Runnable
     // Note, we used to pass this to scenarios that run, but it just added complexity
     // So that was removed. But we still have this here to demonstrate how changing
     // the scheme works.
-    public static string? CachedRunnableScheme { get; set; }
+    [ConfigurationProperty (Scope = typeof (AppSettingsScope), OmitClassName = true)]
+    [JsonPropertyName ("UICatalog.RunnableScheme")]
+    public static string CachedRunnableScheme { get; set; } = SchemeManager.SchemesToSchemeName (Schemes.Base);
 
     public UICatalogRunnable ()
     {
-        SchemeName = CachedRunnableScheme = SchemeManager.SchemesToSchemeName (Schemes.Base);
+        SchemeName = CachedRunnableScheme;
         ConfigurationManager.Applied += ConfigAppliedHandler;
     }
 
@@ -61,7 +63,8 @@ public sealed class UICatalogRunnable : Runnable
             return;
         }
 
-        _disableMouseCb?.Value = App.Mouse.IsMouseDisabled ? CheckState.Checked : CheckState.UnChecked;
+        UICatalogSettingsPersistence.ApplyMousePreference (App);
+        _disableMouseCb?.Value = GetIsMouseDisabled () ? CheckState.Checked : CheckState.UnChecked;
 
         _shVersion?.Title = $"{RuntimeEnvironment.OperatingSystem} {RuntimeEnvironment.OperatingSystemVersion}, {App?.Driver?.GetVersionInfo ()}";
 
@@ -170,12 +173,7 @@ public sealed class UICatalogRunnable : Runnable
             menuItems.Add (new MenuItem
             {
                 CommandView = _force16ColorsMenuItemCb,
-                Action = () =>
-                         {
-                             Driver.Force16Colors = !Driver.Force16Colors;
-                             _force16ColorsShortcutCb?.Value = Driver.Force16Colors ? CheckState.Checked : CheckState.UnChecked;
-                             SetNeedsDraw ();
-                         }
+                Action = ToggleForce16Colors
             });
 
             menuItems.Add (new Line ());
@@ -220,6 +218,7 @@ public sealed class UICatalogRunnable : Runnable
                 CachedRunnableScheme = SchemeManager.GetSchemesForCurrentTheme ().Keys.ToArray () [(int)args.NewValue];
                 SchemeName = CachedRunnableScheme;
                 SetNeedsDraw ();
+                UICatalogSettingsPersistence.PersistRunnableSchemeSelection ();
             }
 
             void OnThemesSelectorOnValueChanged (object? _, ValueChangedEventArgs<int?> args)
@@ -260,10 +259,14 @@ public sealed class UICatalogRunnable : Runnable
 
             _disableMouseCb = new CheckBox
             {
-                Title = "_Disable MouseEventArgs", Value = App?.Mouse.IsMouseDisabled == true ? CheckState.Checked : CheckState.UnChecked
+                Title = "_Disable MouseEventArgs", Value = GetIsMouseDisabled () ? CheckState.Checked : CheckState.UnChecked
             };
 
-            _disableMouseCb.ValueChanged += (_, args) => { App?.Mouse.IsMouseDisabled = args.NewValue == CheckState.Checked; };
+            _disableMouseCb.ValueChanged += (_, args) =>
+                                            {
+                                                SetIsMouseDisabled (args.NewValue == CheckState.Checked);
+                                                UICatalogSettingsPersistence.PersistMousePreference (App);
+                                            };
             menuItems.Add (new MenuItem { CommandView = _disableMouseCb, HelpText = "Disable MouseEventArgs" });
 
             return menuItems.ToArray ();
@@ -280,7 +283,7 @@ public sealed class UICatalogRunnable : Runnable
             {
                 AssignHotKeys = true,
                 Labels = Enum.GetNames<LogLevel> (),
-                Value = Enum.GetValues<LogLevel> ().ToList ().IndexOf (Enum.Parse<LogLevel> (UICatalog.Options.DebugLogLevel))
+                Value = Enum.GetValues<LogLevel> ().ToList ().IndexOf (Enum.Parse<LogLevel> (UICatalog.PersistedDebugLogLevel))
             };
 
             MenuItem logMenu = new () { CommandView = _logLevelSelector, HelpText = "Cycle Through Log Levels", Key = Key.L.WithCtrl };
@@ -452,13 +455,9 @@ public sealed class UICatalogRunnable : Runnable
             {
                 if (args.NewValue is { })
                 {
-                    UICatalog.Options = UICatalog.Options with
-                    {
-                        DebugLogLevel = Enum.GetName (Enum.GetValues<LogLevel> () [args.NewValue.Value]) ?? string.Empty
-                    };
+                    UICatalog.PersistedDebugLogLevel = Enum.GetName (Enum.GetValues<LogLevel> () [args.NewValue.Value]) ?? string.Empty;
+                    UICatalogSettingsPersistence.PersistDebugLogLevel ();
                 }
-
-                UICatalog.LogLevelSwitch.MinimumLevel = UICatalog.LogLevelToLogEventLevel (Enum.Parse<LogLevel> (UICatalog.Options.DebugLogLevel));
             }
         }
     }
@@ -712,6 +711,7 @@ public sealed class UICatalogRunnable : Runnable
             {
                 return;
             }
+
             field = value;
             StatusBarChanged?.Invoke (null, new ValueChangedEventArgs<bool> (!field, field));
         }
@@ -806,7 +806,7 @@ public sealed class UICatalogRunnable : Runnable
 
         Shortcut statusBarShortcut = new ()
         {
-            Key = GetFirstUnboundFKey ([]), Title = "Show/Hide Status Bar", CanFocus = false, Action = () => ShowStatusBar = !ShowStatusBar
+            Key = GetFirstUnboundFKey ([]), Title = "Show/Hide Status Bar", CanFocus = false, Action = ToggleStatusBar
         };
 
         _force16ColorsShortcutCb = new CheckBox
@@ -821,12 +821,7 @@ public sealed class UICatalogRunnable : Runnable
             HelpText = "",
             BindKeyToApplication = true,
             Key = GetFirstUnboundFKey ([statusBarShortcut.Key]),
-            Action = () =>
-                     {
-                         Driver.Force16Colors = !Driver.Force16Colors;
-                         _force16ColorsMenuItemCb?.Value = Driver.Force16Colors ? CheckState.Checked : CheckState.UnChecked;
-                         SetNeedsDraw ();
-                     }
+            Action = ToggleForce16Colors
         };
         statusBar.Add (_shQuit, statusBarShortcut, force16ColorsShortcut, _shVersion);
 
@@ -869,13 +864,45 @@ public sealed class UICatalogRunnable : Runnable
 
         _shQuit?.Key = Application.GetDefaultKey (Command.Quit);
 
-        _disableMouseCb?.Value = App?.Mouse.IsMouseDisabled == true ? CheckState.Checked : CheckState.UnChecked;
+        UICatalogSettingsPersistence.ApplyMousePreference (App);
+        _disableMouseCb?.Value = GetIsMouseDisabled () ? CheckState.Checked : CheckState.UnChecked;
+        _force16ColorsMenuItemCb?.Value = Driver.Force16Colors ? CheckState.Checked : CheckState.UnChecked;
         _force16ColorsShortcutCb?.Value = Driver.Force16Colors ? CheckState.Checked : CheckState.UnChecked;
+        _logLevelSelector?.Value = Enum.GetValues<LogLevel> ().ToList ().IndexOf (Enum.Parse<LogLevel> (UICatalog.PersistedDebugLogLevel));
 
         App?.TopRunnableView?.SetNeedsDraw ();
     }
 
     private void ConfigAppliedHandler (object? sender, ConfigurationManagerEventArgs? a) => ConfigApplied ();
+
+    private bool GetIsMouseDisabled ()
+    {
+#pragma warning disable CS0618
+        return Application.IsMouseDisabled;
+#pragma warning restore CS0618
+    }
+
+    private void SetIsMouseDisabled (bool isMouseDisabled)
+    {
+#pragma warning disable CS0618
+        Application.IsMouseDisabled = isMouseDisabled;
+#pragma warning restore CS0618
+    }
+
+    private void ToggleForce16Colors ()
+    {
+        Driver.Force16Colors = !Driver.Force16Colors;
+        _force16ColorsMenuItemCb?.Value = Driver.Force16Colors ? CheckState.Checked : CheckState.UnChecked;
+        _force16ColorsShortcutCb?.Value = Driver.Force16Colors ? CheckState.Checked : CheckState.UnChecked;
+        SetNeedsDraw ();
+        UICatalogSettingsPersistence.PersistDriverColorMode ();
+    }
+
+    private void ToggleStatusBar ()
+    {
+        ShowStatusBar = !ShowStatusBar;
+        UICatalogSettingsPersistence.PersistStatusBarPreference ();
+    }
 
     #endregion Configuration Manager
 
