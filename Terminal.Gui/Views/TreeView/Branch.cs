@@ -221,7 +221,11 @@ internal class Branch<T> where T : class
         }
 
         attr = modelColor;
-        cells.AddRange (lineBody.Select (c => NewCell (attr, c.ToString ())));
+
+        foreach (string grapheme in GraphemeHelper.GetGraphemes (lineBody))
+        {
+            cells.Add (NewCell (attr, grapheme));
+        }
 
         if (availableWidth > 0)
         {
