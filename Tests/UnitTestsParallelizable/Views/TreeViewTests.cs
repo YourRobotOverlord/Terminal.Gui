@@ -60,11 +60,16 @@ public class TreeViewTests (ITestOutputHelper output) : TestDriverBase
 
     // CoPilot - GPT-6
     [Theory]
-    [InlineData ("file-\U0001F600.txt", "\U0001F600")]
-    [InlineData ("e\u0301", "e\u0301")]
+    [InlineData ("file-\U0001F600.txt", "\U0001F600", false, "")]
+    [InlineData ("e\u0301", "e\u0301", true, "└─é")]
+    [InlineData ("😀ABC", "😀", true, "└─😀ABC")]
+    [InlineData ("ABC👨‍👩‍👧", "👨‍👩‍👧", true, "└─ABC👨‍👩‍👧")]
+    [InlineData ("🍎🦮👨‍👩‍👧", "🍎", false, "")]
     public void Draw_Preserves_Unicode_Grapheme_Clusters (
         string text,
-        string expectedGrapheme
+        string expectedGrapheme,
+        bool expectedFlag,
+        string expectedNormalizedGrapheme
     )
     {
         // Arrange
@@ -73,7 +78,7 @@ public class TreeViewTests (ITestOutputHelper output) : TestDriverBase
         TreeView<string> tree = new (new DelegateTreeBuilder<string> (_ => [], _ => false))
         {
             Driver = driver,
-            Frame = new Rectangle (0, 0, 40, 1)
+            Frame = new Rectangle (0, 0, 7, 1)
         };
         tree.AddObject (text);
 
@@ -98,7 +103,10 @@ public class TreeViewTests (ITestOutputHelper output) : TestDriverBase
         }
 
         // Assert
-        Assert.True (found, $"Expected grapheme '{expectedGrapheme}' to be preserved in a single cell.");
+        // The expected grapheme must be preserved in a single cell if not truncated.
+        Assert.Equal (found, expectedFlag);
+
+        DriverAssert.AssertDriverContentsAre (expectedNormalizedGrapheme, output, driver);
 
         tree.Dispose ();
     }
