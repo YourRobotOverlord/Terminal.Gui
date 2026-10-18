@@ -2,6 +2,13 @@ namespace Terminal.Gui.ViewBase;
 
 public partial class View
 {
+    private SharedLineCanvasCache? _sharedLineCanvasCache;
+
+    private bool NeedsSharedLineCanvasUpdate (Rectangle frame, bool overlapped) =>
+        _sharedLineCanvasCache?.Matches (frame, overlapped) != true
+        || LineCanvas.Bounds != Rectangle.Empty
+        || LineCanvas.GetReservedCells () is { };
+
     /// <summary>The canvas that any line drawing that is to be shared by SubViews of this view should add lines to.</summary>
     /// <remarks><see cref="Border"/> adds lines to this LineCanvas.</remarks>
     public LineCanvas LineCanvas { get; } = new ();
@@ -191,5 +198,47 @@ public partial class View
         _lastLineCanvasRegion = cellMap.Count > 0 || hasOverlapped ? lineRegion : null;
 
         LineCanvas.Clear ();
+    }
+
+    /// <summary>
+    ///     Retains a shared canvas contribution after its source is consumed. Resolved
+    ///     cells preserve overlapped gaps; tiled geometry preserves cross-view auto-join.
+    /// </summary>
+    private sealed class SharedLineCanvasCache : IDisposable
+    {
+        private bool _isValid;
+        private Rectangle _frame;
+        private bool _overlapped;
+
+        public (Dictionary<Point, Cell?> CellMap, HashSet<Point>? Reserved) OverlappedCells { get; private set; } = ( [], null);
+        public LineCanvas? TiledCanvas { get; private set; }
+
+        public bool Matches (Rectangle frame, bool overlapped) => _isValid && _frame == frame && _overlapped == overlapped;
+
+        public void Invalidate () => _isValid = false;
+
+        public void Update (LineCanvas source, Rectangle frame, bool overlapped)
+        {
+            _frame = frame;
+            _overlapped = overlapped;
+
+            if (overlapped)
+            {
+                TiledCanvas?.Dispose ();
+                TiledCanvas = null;
+                OverlappedCells = (source.GetCellMap (), source.GetReservedCells ());
+                _isValid = true;
+
+                return;
+            }
+
+            TiledCanvas ??= new ();
+            TiledCanvas.Clear ();
+            TiledCanvas.Merge (source);
+            OverlappedCells = ( [], null);
+            _isValid = true;
+        }
+
+        public void Dispose () => TiledCanvas?.Dispose ();
     }
 }

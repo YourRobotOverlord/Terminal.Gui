@@ -124,6 +124,8 @@ public partial class View // Drawing APIs
 
         if (NeedsDraw || SubViewNeedsDraw)
         {
+            _sharedLineCanvasCache?.Invalidate ();
+
             // ------------------------------------
             // Draw the Border and Padding Adornments.
             // Note: Margin with a Shadow is special-cased and drawn in a separate pass to support
@@ -713,19 +715,25 @@ public partial class View // Drawing APIs
                 // Fully occluded by higher-Z opaque peers. Clear the draw flags to mirror a
                 // drawn-but-fully-clipped pass (Draw() would have called ClearNeedsDraw at its end);
                 // otherwise this view would stay dirty forever and keep the SuperView redrawing.
+                // Draw() also invalidates any earlier shared contribution before consuming dirty state.
+                view._sharedLineCanvasCache?.Invalidate ();
                 view.ClearNeedsDraw ();
 
                 continue;
             }
 
-            // Shared canvases are consumed and cleared after each draw. Even a clean
-            // SubView must rebuild its adornment lines so partial redraws compose the
-            // same borders and reserved gaps as a full draw. Keep its content clean.
-            if (view.SuperViewRendersLineCanvas && !view.NeedsDraw && !view.SubViewNeedsDraw)
+            // A clean shared canvas can reuse its last contribution without visiting
+            // its SubViews. Rebuild only when no contribution matches its current geometry.
+            if (view.SuperViewRendersLineCanvas
+                && !view.NeedsDraw
+                && !view.SubViewNeedsDraw
+                && view.NeedsSharedLineCanvasUpdate (view.FrameToScreen (), view.Arrangement.FastHasFlags (ViewArrangement.Overlapped)))
             {
                 view.SetSubViewNeedsDrawDownHierarchy ();
             }
 
+            // Clean shared views still need DrawComplete for clip exclusion and hit-testing.
+            // The cache avoids rebuilding their line data without bypassing that bookkeeping.
             view.Draw (context);
 
             if (opaque)
@@ -739,25 +747,27 @@ public partial class View // Drawing APIs
                 continue;
             }
 
-            if (view.Arrangement.FastHasFlags (ViewArrangement.Overlapped))
+            bool overlapped = view.Arrangement.FastHasFlags (ViewArrangement.Overlapped);
+            Rectangle sharedFrame = view.FrameToScreen ();
+            SharedLineCanvasCache sharedCanvas = view._sharedLineCanvasCache ??= new ();
+
+            if (view.NeedsSharedLineCanvasUpdate (sharedFrame, overlapped))
+            {
+                sharedCanvas.Update (view.LineCanvas, sharedFrame, overlapped);
+            }
+
+            if (overlapped)
             {
                 // Overlapped views: resolve independently so their lines don't
                 // auto-join with other Z-levels. Deferred for painters' algorithm
                 // compositing in RenderLineCanvas.
-                Dictionary<Point, Cell?>? resolvedCells = null;
-
-                if (view.LineCanvas.Bounds != Rectangle.Empty)
-                {
-                    resolvedCells = view.LineCanvas.GetCellMap ();
-                }
-
                 overlappedCellMaps ??= [];
-                overlappedCellMaps.Add ((resolvedCells ?? [], view.LineCanvas.GetReservedCells ()));
+                overlappedCellMaps.Add (sharedCanvas.OverlappedCells);
             }
             else
             {
                 // Tiled views: flat merge preserves cross-view auto-join.
-                LineCanvas.Merge (view.LineCanvas);
+                LineCanvas.Merge (sharedCanvas.TiledCanvas!);
             }
             view.LineCanvas.Clear ();
         }
