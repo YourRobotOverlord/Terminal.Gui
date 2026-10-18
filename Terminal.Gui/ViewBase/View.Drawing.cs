@@ -718,6 +718,14 @@ public partial class View // Drawing APIs
                 continue;
             }
 
+            // Shared canvases are consumed and cleared after each draw. Even a clean
+            // SubView must rebuild its adornment lines so partial redraws compose the
+            // same borders and reserved gaps as a full draw. Keep its content clean.
+            if (view.SuperViewRendersLineCanvas && !view.NeedsDraw && !view.SubViewNeedsDraw)
+            {
+                view.SetSubViewNeedsDrawDownHierarchy ();
+            }
+
             view.Draw (context);
 
             if (opaque)
