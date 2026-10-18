@@ -19,7 +19,8 @@ internal class NerdFonts
     public static bool Enable => NerdFontsSettings.Current.Enable;
 
     /// <summary>Mapping of file extension to <see cref="Glyphs"/> name.</summary>
-    public Dictionary<string, string> ExtensionToIcon { get; set; } = new ()
+    /// <remarks>Keys are case-insensitive by default. The longest matching extension takes precedence.</remarks>
+    public Dictionary<string, string> ExtensionToIcon { get; set; } = new (StringComparer.OrdinalIgnoreCase)
     {
         // Archive files
         { ".7z", "nf-oct-file_zip" },
@@ -421,7 +422,8 @@ internal class NerdFonts
     };
 
     /// <summary>Mapping of file name to <see cref="Glyphs"/> name.</summary>
-    public Dictionary<string, string> FilenameToIcon { get; set; } = new ()
+    /// <remarks>Keys are case-insensitive by default. File name matches take precedence over extension matches.</remarks>
+    public Dictionary<string, string> FilenameToIcon { get; set; } = new (StringComparer.OrdinalIgnoreCase)
     {
         { "docs", "nf-oct-repo" },
         { "documents", "nf-oct-repo" },
@@ -744,13 +746,20 @@ internal class NerdFonts
     {
         ArgumentNullException.ThrowIfNull (file);
 
-        if (FilenameToIcon.TryGetValue (file.Name, out string? filenameIcon))
+        string filename = file.Name;
+
+        if (FilenameToIcon.TryGetValue (filename, out string? filenameIcon))
         {
             return Glyphs [filenameIcon];
         }
 
-        if (ExtensionToIcon.TryGetValue (file.Extension, out string? extensionIcon))
+        for (int suffixStart = filename.IndexOf ('.'); suffixStart >= 0; suffixStart = filename.IndexOf ('.', suffixStart + 1))
         {
+            if (!ExtensionToIcon.TryGetValue (filename [suffixStart..], out string? extensionIcon))
+            {
+                continue;
+            }
+
             return Glyphs [extensionIcon];
         }
 
