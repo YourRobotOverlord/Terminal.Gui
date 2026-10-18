@@ -266,12 +266,14 @@ public class FileDialogExamples : Scenario
         }
     }
 
+#nullable enable
     private sealed class CustomIconProvider : FileSystemIconProvider
     {
-        public override Rune GetIcon (IFileSystemInfo fileSystemInfo) => new (fileSystemInfo is IDirectoryInfo ? 'D' : 'F');
+        public override Rune GetIcon (IFileSystemInfo? fileSystemInfo) => new (fileSystemInfo is IDirectoryInfo ? 'D' : 'F');
 
-        public override string GetIconWithOptionalSpace (IFileSystemInfo fileSystemInfo) => $"[{GetIcon (fileSystemInfo)}] ";
+        public override string GetIconWithOptionalSpace (IFileSystemInfo? fileSystemInfo) => $"[{GetIcon (fileSystemInfo)}] ";
     }
+#nullable restore
 
     private class CaseSensitiveSearchMatcher : ISearchMatcher
     {
