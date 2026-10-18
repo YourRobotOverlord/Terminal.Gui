@@ -168,15 +168,40 @@ internal class Branch<T> where T : class
             // is pushed off to the left because of scrolling.
             // Account for checkbox cells (glyph + space) prepended to lineBody.
             int checkboxOffset = _tree.CheckboxMode ? 2 : 0;
-            indexOfModelText = -(toSkip - checkboxOffset);
 
-            if (toSkip > lineBody.GetColumns ())
+            if (toSkip >= lineBody.GetColumns ())
             {
+                indexOfModelText = -(toSkip - checkboxOffset);
                 lineBody = "";
             }
             else
             {
-                lineBody = lineBody [toSkip..];
+                int columnsSkipped = 0;
+                StringBuilder remaining = new ();
+
+                foreach (string grapheme in GraphemeHelper.GetGraphemes (lineBody))
+                {
+                    int graphemeColumns = grapheme.GetColumns ();
+
+                    if (columnsSkipped + graphemeColumns <= toSkip)
+                    {
+                        columnsSkipped += graphemeColumns;
+                        continue;
+                    }
+
+                    // If scrolling starts inside a wide grapheme, skip it entirely.
+                    if (columnsSkipped < toSkip)
+                    {
+                        columnsSkipped += graphemeColumns;
+                        continue;
+                    }
+
+                    remaining.Append (grapheme);
+                }
+
+                // Use the actual display-column width skipped, not the requested offset.
+                indexOfModelText = -(columnsSkipped - checkboxOffset);
+                lineBody = remaining.ToString ();
             }
         }
         else
