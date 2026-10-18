@@ -170,7 +170,7 @@ internal class Branch<T> where T : class
             int checkboxOffset = _tree.CheckboxMode ? 2 : 0;
             indexOfModelText = -(toSkip - checkboxOffset);
 
-            if (toSkip > lineBody.Length)
+            if (toSkip > lineBody.GetColumns ())
             {
                 lineBody = "";
             }
@@ -208,7 +208,7 @@ internal class Branch<T> where T : class
         else
         {
             // line is short so remaining width will be whatever comes after the line body
-            availableWidth -= lineBody.Length;
+            availableWidth -= lineBody.GetColumns ();
         }
 
         // default behaviour is for model to use the scheme
