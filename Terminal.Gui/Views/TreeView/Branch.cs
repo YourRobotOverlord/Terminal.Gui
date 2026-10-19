@@ -168,15 +168,40 @@ internal class Branch<T> where T : class
             // is pushed off to the left because of scrolling.
             // Account for checkbox cells (glyph + space) prepended to lineBody.
             int checkboxOffset = _tree.CheckboxMode ? 2 : 0;
-            indexOfModelText = -(toSkip - checkboxOffset);
 
-            if (toSkip > lineBody.Length)
+            if (toSkip >= lineBody.GetColumns ())
             {
+                indexOfModelText = -(toSkip - checkboxOffset);
                 lineBody = "";
             }
             else
             {
-                lineBody = lineBody [toSkip..];
+                int columnsSkipped = 0;
+                StringBuilder remaining = new ();
+
+                foreach (string grapheme in GraphemeHelper.GetGraphemes (lineBody))
+                {
+                    int graphemeColumns = grapheme.GetColumns ();
+
+                    if (columnsSkipped + graphemeColumns <= toSkip)
+                    {
+                        columnsSkipped += graphemeColumns;
+                        continue;
+                    }
+
+                    // If scrolling starts inside a wide grapheme, skip it entirely.
+                    if (columnsSkipped < toSkip)
+                    {
+                        columnsSkipped += graphemeColumns;
+                        continue;
+                    }
+
+                    remaining.Append (grapheme);
+                }
+
+                // Use the actual display-column width skipped, not the requested offset.
+                indexOfModelText = -(columnsSkipped - checkboxOffset);
+                lineBody = remaining.ToString ();
             }
         }
         else
@@ -184,17 +209,31 @@ internal class Branch<T> where T : class
             indexOfModelText = cells.Count + (_tree.CheckboxMode ? 2 : 0);
         }
 
+        StringBuilder truncated = new ();
+
         // If body of line is too long
         if (lineBody.GetColumns () > availableWidth)
         {
             // remaining space is zero and truncate the line
-            lineBody = new string (lineBody.TakeWhile (c => (availableWidth -= ((Rune)c).GetColumns ()) >= 0).ToArray ());
+            foreach (string grapheme in GraphemeHelper.GetGraphemes (lineBody))
+            {
+                int columns = grapheme.GetColumns ();
+
+                if ((availableWidth -= columns) < 0)
+                {
+                    break;
+                }
+
+                truncated.Append (grapheme);
+            }
+
+            lineBody = truncated.ToString ();
             availableWidth = 0;
         }
         else
         {
             // line is short so remaining width will be whatever comes after the line body
-            availableWidth -= lineBody.Length;
+            availableWidth -= lineBody.GetColumns ();
         }
 
         // default behaviour is for model to use the scheme
@@ -221,7 +260,11 @@ internal class Branch<T> where T : class
         }
 
         attr = modelColor;
-        cells.AddRange (lineBody.Select (c => NewCell (attr, c.ToString ())));
+
+        foreach (string grapheme in GraphemeHelper.GetGraphemes (lineBody))
+        {
+            cells.Add (NewCell (attr, grapheme));
+        }
 
         if (availableWidth > 0)
         {

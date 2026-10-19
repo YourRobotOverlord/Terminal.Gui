@@ -58,6 +58,58 @@ public class TreeViewTests (ITestOutputHelper output) : TestDriverBase
                                               driver);
     }
 
+    // CoPilot - GPT-6
+    [Theory]
+    [InlineData ("file-\U0001F600.txt", "\U0001F600", false, "")]
+    [InlineData ("e\u0301", "e\u0301", true, "└─é")]
+    [InlineData ("😀ABC", "😀", true, "└─😀ABC")]
+    [InlineData ("ABC👨‍👩‍👧", "👨‍👩‍👧", true, "└─ABC👨‍👩‍👧")]
+    [InlineData ("🍎🦮👨‍👩‍👧", "🍎", false, "")]
+    public void Draw_Preserves_Unicode_Grapheme_Clusters (
+        string text,
+        string expectedGrapheme,
+        bool expectedFlag,
+        string expectedNormalizedGrapheme
+    )
+    {
+        // Arrange
+        IDriver driver = CreateTestDriver ();
+
+        TreeView<string> tree = new (new DelegateTreeBuilder<string> (_ => [], _ => false))
+        {
+            Driver = driver,
+            Frame = new Rectangle (0, 0, 7, 1)
+        };
+        tree.AddObject (text);
+
+        // Act
+        // Drawing must not throw for supplementary-plane characters
+        // or grapheme clusters containing combining marks.
+        tree.Draw ();
+
+        // The expected grapheme must remain intact in a single cell.
+        bool found = false;
+
+        for (int x = 0; x < driver.Contents!.GetLength (1); x++)
+        {
+            var normalizedGrapheme = expectedGrapheme.Normalize ();
+
+            if (normalizedGrapheme == driver.Contents [0, x].Grapheme)
+            {
+                found = true;
+
+                break;
+            }
+        }
+
+        // Assert
+        // The expected grapheme must be preserved in a single cell if not truncated.
+        Assert.Equal (found, expectedFlag);
+
+        DriverAssert.AssertDriverContentsAre (expectedNormalizedGrapheme, output, driver);
+
+        tree.Dispose ();
+    }
 
     [Fact]
     public void Draw_EnableForDesign_Size_Auto_Draws_Correctly ()
