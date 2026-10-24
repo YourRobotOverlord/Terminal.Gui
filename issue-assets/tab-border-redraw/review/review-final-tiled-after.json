@@ -1,0 +1,62 @@
+[
+  {
+    "layout": "tiled",
+    "tabCount": 1,
+    "controlCount": 1,
+    "iterations": 200,
+    "medianMicroseconds": 192.295,
+    "bytesPerRedraw": 249835.44,
+    "pageContentDraws": 0,
+    "controlVisitsPerRedraw": 1
+  },
+  {
+    "layout": "tiled",
+    "tabCount": 1,
+    "controlCount": 10,
+    "iterations": 200,
+    "medianMicroseconds": 248.45,
+    "bytesPerRedraw": 341212.52,
+    "pageContentDraws": 0,
+    "controlVisitsPerRedraw": 10
+  },
+  {
+    "layout": "tiled",
+    "tabCount": 6,
+    "controlCount": 1,
+    "iterations": 85,
+    "medianMicroseconds": 1173.3917647058825,
+    "bytesPerRedraw": 1442538.2588235294,
+    "pageContentDraws": 0,
+    "controlVisitsPerRedraw": 1
+  },
+  {
+    "layout": "tiled",
+    "tabCount": 6,
+    "controlCount": 10,
+    "iterations": 75,
+    "medianMicroseconds": 1243.1586666666665,
+    "bytesPerRedraw": 1613964.6933333334,
+    "pageContentDraws": 0,
+    "controlVisitsPerRedraw": 10
+  },
+  {
+    "layout": "tiled",
+    "tabCount": 24,
+    "controlCount": 1,
+    "iterations": 14,
+    "medianMicroseconds": 6897.214285714285,
+    "bytesPerRedraw": 7195919.428571428,
+    "pageContentDraws": 0,
+    "controlVisitsPerRedraw": 1
+  },
+  {
+    "layout": "tiled",
+    "tabCount": 24,
+    "controlCount": 10,
+    "iterations": 14,
+    "medianMicroseconds": 6941.885714285714,
+    "bytesPerRedraw": 7383271.428571428,
+    "pageContentDraws": 0,
+    "controlVisitsPerRedraw": 10
+  }
+]

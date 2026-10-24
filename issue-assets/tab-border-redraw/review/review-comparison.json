@@ -1,0 +1,110 @@
+[
+  {
+    "layout": "tabs",
+    "views": 1,
+    "controls": 1,
+    "beforeMs": 21.008964999999996,
+    "afterMs": 19.011410000000005,
+    "beforeMiB": 38.09157943725586,
+    "afterMiB": 38.09707260131836
+  },
+  {
+    "layout": "tabs",
+    "views": 1,
+    "controls": 50,
+    "beforeMs": 21.298575,
+    "afterMs": 19.539895,
+    "beforeMiB": 39.11685333251953,
+    "afterMiB": 39.12234649658203
+  },
+  {
+    "layout": "tabs",
+    "views": 4,
+    "controls": 1,
+    "beforeMs": 23.358669999999996,
+    "afterMs": 21.696614999999998,
+    "beforeMiB": 40.670162200927734,
+    "afterMiB": 40.6794548034668
+  },
+  {
+    "layout": "tabs",
+    "views": 4,
+    "controls": 50,
+    "beforeMs": 23.01078,
+    "afterMs": 21.825080000000003,
+    "beforeMiB": 41.88468551635742,
+    "afterMiB": 41.893978118896484
+  },
+  {
+    "layout": "tabs",
+    "views": 20,
+    "controls": 1,
+    "beforeMs": 32.5023,
+    "afterMs": 29.39264,
+    "beforeMiB": 56.269779205322266,
+    "afterMiB": 56.29933547973633
+  },
+  {
+    "layout": "tabs",
+    "views": 20,
+    "controls": 50,
+    "beforeMs": 35.410090000000004,
+    "afterMs": 33.49194500000001,
+    "beforeMiB": 58.228250122070314,
+    "afterMiB": 58.25778579711914
+  },
+  {
+    "layout": "tiled",
+    "views": 1,
+    "controls": 1,
+    "beforeMs": 0.17793674999999998,
+    "afterMs": 0.18430475000000002,
+    "beforeMiB": 0.2364916229248047,
+    "afterMiB": 0.2382616424560547
+  },
+  {
+    "layout": "tiled",
+    "views": 1,
+    "controls": 10,
+    "beforeMs": 0.22969050000000002,
+    "afterMs": 0.2352585,
+    "beforeMiB": 0.3236355972290039,
+    "afterMiB": 0.3254056167602539
+  },
+  {
+    "layout": "tiled",
+    "views": 6,
+    "controls": 1,
+    "beforeMs": 1.037343157894737,
+    "afterMs": 1.0732783849129595,
+    "beforeMiB": 1.3691354851973685,
+    "afterMiB": 1.3757128235911031
+  },
+  {
+    "layout": "tiled",
+    "views": 6,
+    "controls": 10,
+    "beforeMs": 1.1730394254445964,
+    "afterMs": 1.1820894480519482,
+    "beforeMiB": 1.5326201239297557,
+    "afterMiB": 1.5391965882602707
+  },
+  {
+    "layout": "tiled",
+    "views": 24,
+    "controls": 1,
+    "beforeMs": 7.294173333333333,
+    "afterMs": 6.797016666666666,
+    "beforeMiB": 6.838691202799479,
+    "afterMiB": 6.862560508364723
+  },
+  {
+    "layout": "tiled",
+    "views": 24,
+    "controls": 10,
+    "beforeMs": 7.010986217948719,
+    "afterMs": 6.89880357142857,
+    "beforeMiB": 7.0173588288136015,
+    "afterMiB": 7.041236332484654
+  }
+]

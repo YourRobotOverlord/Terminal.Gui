@@ -1,0 +1,122 @@
+[
+  {
+    "layout": "tabs",
+    "views": 1,
+    "controls": 1,
+    "beforeMs": 20.6092,
+    "afterMs": 18.91831,
+    "beforeMiB": 38.09157943725586,
+    "afterMiB": 38.09707260131836,
+    "controlVisits": 1
+  },
+  {
+    "layout": "tabs",
+    "views": 1,
+    "controls": 50,
+    "beforeMs": 20.68807,
+    "afterMs": 19.65955,
+    "beforeMiB": 39.11685333251953,
+    "afterMiB": 39.12234649658203,
+    "controlVisits": 50
+  },
+  {
+    "layout": "tabs",
+    "views": 4,
+    "controls": 1,
+    "beforeMs": 22.26697,
+    "afterMs": 21.554170000000003,
+    "beforeMiB": 40.670162200927734,
+    "afterMiB": 40.6794548034668,
+    "controlVisits": 1
+  },
+  {
+    "layout": "tabs",
+    "views": 4,
+    "controls": 50,
+    "beforeMs": 22.982020000000002,
+    "afterMs": 21.52628,
+    "beforeMiB": 41.88468551635742,
+    "afterMiB": 41.893978118896484,
+    "controlVisits": 50
+  },
+  {
+    "layout": "tabs",
+    "views": 20,
+    "controls": 1,
+    "beforeMs": 30.492729999999998,
+    "afterMs": 29.82807,
+    "beforeMiB": 56.269779205322266,
+    "afterMiB": 56.29933547973633,
+    "controlVisits": 1
+  },
+  {
+    "layout": "tabs",
+    "views": 20,
+    "controls": 50,
+    "beforeMs": 34.78952,
+    "afterMs": 32.59381,
+    "beforeMiB": 58.228250122070314,
+    "afterMiB": 58.25778579711914,
+    "controlVisits": 50
+  },
+  {
+    "layout": "tiled",
+    "views": 1,
+    "controls": 1,
+    "beforeMs": 0.1896475,
+    "afterMs": 0.192295,
+    "beforeMiB": 0.2364916229248047,
+    "afterMiB": 0.2382616424560547,
+    "controlVisits": 1
+  },
+  {
+    "layout": "tiled",
+    "views": 1,
+    "controls": 10,
+    "beforeMs": 0.24169150000000003,
+    "afterMs": 0.24844999999999998,
+    "beforeMiB": 0.3236355972290039,
+    "afterMiB": 0.3254056167602539,
+    "controlVisits": 10
+  },
+  {
+    "layout": "tiled",
+    "views": 6,
+    "controls": 1,
+    "beforeMs": 1.1740455555555556,
+    "afterMs": 1.1733917647058825,
+    "beforeMiB": 1.369136471218533,
+    "afterMiB": 1.3757116878733915,
+    "controlVisits": 1
+  },
+  {
+    "layout": "tiled",
+    "views": 6,
+    "controls": 10,
+    "beforeMs": 1.158118823529412,
+    "afterMs": 1.2431586666666665,
+    "beforeMiB": 1.5326202392578125,
+    "afterMiB": 1.5391966756184896,
+    "controlVisits": 10
+  },
+  {
+    "layout": "tiled",
+    "views": 24,
+    "controls": 1,
+    "beforeMs": 6.581485714285715,
+    "afterMs": 6.897214285714285,
+    "beforeMiB": 6.838683537074497,
+    "afterMiB": 6.86256354195731,
+    "controlVisits": 1
+  },
+  {
+    "layout": "tiled",
+    "views": 24,
+    "controls": 10,
+    "beforeMs": 6.7899642857142855,
+    "afterMs": 6.941885714285714,
+    "beforeMiB": 7.017356327601841,
+    "afterMiB": 7.041236332484654,
+    "controlVisits": 10
+  }
+]
