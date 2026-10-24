@@ -3,11 +3,19 @@ namespace Terminal.Gui.ViewBase;
 public partial class View
 {
     private SharedLineCanvasCache? _sharedLineCanvasCache;
+    private bool _contentChangesLineCanvas;
 
-    private bool NeedsSharedLineCanvasUpdate (Rectangle frame, bool overlapped) =>
-        _sharedLineCanvasCache?.Matches (frame, overlapped) != true
-        || LineCanvas.Bounds != Rectangle.Empty
-        || LineCanvas.GetReservedCells () is { };
+    private void RebuildSharedLineCanvas ()
+    {
+        if (_contentChangesLineCanvas)
+        {
+            SetNeedsDraw ();
+
+            return;
+        }
+
+        SetSubViewNeedsDrawDownHierarchy ();
+    }
 
     /// <summary>The canvas that any line drawing that is to be shared by SubViews of this view should add lines to.</summary>
     /// <remarks><see cref="Border"/> adds lines to this LineCanvas.</remarks>
@@ -204,41 +212,59 @@ public partial class View
     ///     Retains a shared canvas contribution after its source is consumed. Resolved
     ///     cells preserve overlapped gaps; tiled geometry preserves cross-view auto-join.
     /// </summary>
-    private sealed class SharedLineCanvasCache : IDisposable
+    private sealed class SharedLineCanvasCache
     {
         private bool _isValid;
         private Rectangle _frame;
+        private Rectangle _viewport;
         private bool _overlapped;
+        private int _themeGeneration;
+        private Scheme? _scheme;
+        private Attribute _borderAttribute;
+        private bool _hasFocus;
+        private bool _enabled;
+        private Thickness _borderThickness;
+        private LineStyle? _borderStyle;
+        private string? _title;
 
         public (Dictionary<Point, Cell?> CellMap, HashSet<Point>? Reserved) OverlappedCells { get; private set; } = ( [], null);
-        public LineCanvas? TiledCanvas { get; private set; }
+        public LineCanvasSnapshot? Geometry { get; private set; }
+        public bool PendingDraw { get; set; }
+        public int SourceVersion { get; private set; }
 
-        public bool Matches (Rectangle frame, bool overlapped) => _isValid && _frame == frame && _overlapped == overlapped;
+        public bool Matches (View view) =>
+            _isValid
+            && _frame == view.FrameToScreen ()
+            && _viewport == view.Viewport
+            && _overlapped == view.Arrangement.FastHasFlags (ViewArrangement.Overlapped)
+            && _themeGeneration == ThemeChanges.Generation
+            && _hasFocus == view.HasFocus
+            && _enabled == view.Enabled
+            && _borderThickness == view.Border.Thickness
+            && _borderStyle == view.Border.LineStyle
+            && _title == view.Title
+            && _scheme == view.GetScheme ()
+            && _borderAttribute == (view.Border.View ?? view).GetAttributeForRole (VisualRole.Normal);
 
         public void Invalidate () => _isValid = false;
 
-        public void Update (LineCanvas source, Rectangle frame, bool overlapped)
+        public void Update (View view)
         {
-            _frame = frame;
-            _overlapped = overlapped;
-
-            if (overlapped)
-            {
-                TiledCanvas?.Dispose ();
-                TiledCanvas = null;
-                OverlappedCells = (source.GetCellMap (), source.GetReservedCells ());
-                _isValid = true;
-
-                return;
-            }
-
-            TiledCanvas ??= new ();
-            TiledCanvas.Clear ();
-            TiledCanvas.Merge (source);
-            OverlappedCells = ( [], null);
+            _frame = view.FrameToScreen ();
+            _viewport = view.Viewport;
+            _overlapped = view.Arrangement.FastHasFlags (ViewArrangement.Overlapped);
+            _themeGeneration = ThemeChanges.Generation;
+            _hasFocus = view.HasFocus;
+            _enabled = view.Enabled;
+            _borderThickness = view.Border.Thickness;
+            _borderStyle = view.Border.LineStyle;
+            _title = view.Title;
+            _scheme = view.GetScheme ();
+            _borderAttribute = (view.Border.View ?? view).GetAttributeForRole (VisualRole.Normal);
+            Geometry = view.LineCanvas.Capture ();
+            SourceVersion = view.LineCanvas.Version;
+            OverlappedCells = _overlapped ? (view.LineCanvas.GetCellMap (), Geometry.Reserved) : ( [], null);
             _isValid = true;
         }
-
-        public void Dispose () => TiledCanvas?.Dispose ();
     }
 }

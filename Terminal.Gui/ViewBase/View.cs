@@ -109,7 +109,7 @@ public partial class View : IDisposable, ISupportInitializeNotification
             return;
         }
         LineCanvas.Dispose ();
-        _sharedLineCanvasCache?.Dispose ();
+        _sharedLineCanvasCache = null;
 
         DisposeMouse ();
         DisposeKeyboard ();
